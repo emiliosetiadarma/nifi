@@ -101,7 +101,7 @@ public class AWSKMSSensitivePropertyProvider implements SensitivePropertyProvide
      *
      * @return the ciphertext blob to persist in the {@code nifi.properties} file
      */
-    private byte[] kmsEncrypt(byte[] input) {
+    private byte[] encrypt(byte[] input) {
         SdkBytes plainBytes = SdkBytes.fromByteArray(input);
 
         // TODO: Verify region (??)
@@ -130,7 +130,7 @@ public class AWSKMSSensitivePropertyProvider implements SensitivePropertyProvide
      *
      * @return the "unprotected" byte[] of this value, which could be used by the application
      */
-    private byte[] kmsDecrypt(byte[] input) {
+    private byte[] decrypt(byte[] input) {
         SdkBytes cipherBytes = SdkBytes.fromByteArray(input);
 
         // TODO: Verify region (??)
@@ -167,7 +167,7 @@ public class AWSKMSSensitivePropertyProvider implements SensitivePropertyProvide
 
         try {
             byte[] plainBytes = unprotectedValue.getBytes(StandardCharsets.UTF_8);
-            byte[] cipherBytes = kmsEncrypt(plainBytes);
+            byte[] cipherBytes = encrypt(plainBytes);
             logger.debug(getName() + " encrypted a sensitive value successfully");
             return base64Encode(cipherBytes);
         } catch (KmsException | EncoderException e) {
@@ -196,7 +196,7 @@ public class AWSKMSSensitivePropertyProvider implements SensitivePropertyProvide
 
         try {
             byte[] cipherBytes = Base64.decode(protectedValue);
-            byte[] plainBytes = kmsDecrypt(cipherBytes);
+            byte[] plainBytes = decrypt(cipherBytes);
             logger.debug(getName() + " decrypted a sensitive value successfully");
             return new String(plainBytes, StandardCharsets.UTF_8);
         } catch (KmsException | DecoderException e) {
