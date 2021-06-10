@@ -19,8 +19,8 @@ import software.amazon.awssdk.services.kms.model.KmsException;
 
 import java.nio.charset.StandardCharsets;
 
-public class AWSKMSSensitivePropertyProvider implements SensitivePropertyProvider{
-    private static final Logger logger = LoggerFactory.getLogger(AWSKMSSensitivePropertyProvider.class);
+public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
+    private static final Logger logger = LoggerFactory.getLogger(AWSSensitivePropertyProvider.class);
 
     private static final String IMPLEMENTATION_NAME = "AWS KMS Sensitive Property Provider";
     private static final String IMPLEMENTATION_KEY = "aws/kms/";
@@ -29,7 +29,7 @@ public class AWSKMSSensitivePropertyProvider implements SensitivePropertyProvide
     private static String keyId;
 
 
-    public AWSKMSSensitivePropertyProvider(String keyId) throws SensitivePropertyProtectionException {
+    public AWSSensitivePropertyProvider(String keyId) throws SensitivePropertyProtectionException {
         try {
             this.keyId = validateKey(keyId);
         } catch (KmsException e) {
