@@ -21,7 +21,17 @@
         <version>1.14.0-SNAPSHOT</version>
     </parent>
     <artifactId>nifi-sensitive-property-provider</artifactId>
-
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>20.6.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>org.apache.nifi</groupId>
@@ -41,6 +51,10 @@
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-security-utils</artifactId>
             <version>1.14.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-kms</artifactId>
         </dependency>
     </dependencies>
     <build>
