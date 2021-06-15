@@ -105,6 +105,8 @@ public class StandardSensitivePropertyProviderFactory implements SensitiveProper
             case AES_GCM:
                 return providerMap.computeIfAbsent(protectionScheme, s -> new AESSensitivePropertyProvider(keyHex));
             // Other providers may choose to pass getBootstrapProperties() into the constructor
+            case AWS:
+                return providerMap.computeIfAbsent(protectionScheme, s -> new AWSSensitivePropertyProvider(getBootstrapProperties()));
             default:
                 throw new SensitivePropertyProtectionException("Unsupported protection scheme " + protectionScheme);
         }
