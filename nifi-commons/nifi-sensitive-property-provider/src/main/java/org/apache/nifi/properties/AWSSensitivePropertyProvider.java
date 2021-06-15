@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.nifi.properties;
 
 import org.apache.commons.lang3.StringUtils;
@@ -6,6 +22,8 @@ import org.bouncycastle.util.encoders.DecoderException;
 import org.bouncycastle.util.encoders.EncoderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DecryptRequest;
@@ -19,19 +37,31 @@ import software.amazon.awssdk.services.kms.model.KmsException;
 
 import java.nio.charset.StandardCharsets;
 
-public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
+public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvider{
     private static final Logger logger = LoggerFactory.getLogger(AWSSensitivePropertyProvider.class);
 
     private static final String IMPLEMENTATION_NAME = "AWS KMS Sensitive Property Provider";
     private static final String IMPLEMENTATION_KEY = "aws/kms/";
     private static final String PROVIDER = "AWS";
+    private static final String ACCESS_KEY_PROPS_NAME = "aws.access.key.id";
+    private static final String SECRET_KEY_PROPS_NAME = "aws.secret.key.id";
+    private static final String KMS_KEY_PROPS_NAME = "aws.kms.key.id";
 
-    private static String keyId;
+    private BootstrapProperties bootstrapProperties;
+    private String keyId;
+    private KmsClient client;
+    private AwsBasicCredentials credentials;
 
-
-    public AWSSensitivePropertyProvider(String keyId) throws SensitivePropertyProtectionException {
+    public AWSSensitivePropertyProvider(BootstrapProperties bootstrapProperties) throws SensitivePropertyProtectionException {
+        super(bootstrapProperties);
+        this.bootstrapProperties = bootstrapProperties;
         try {
-            this.keyId = validateKey(keyId);
+            if (!isSupported(bootstrapProperties)) {
+                throw new SensitivePropertyProtectionException("SPP is not supported");
+            }
+            initializeCredentials(bootstrapProperties);
+            initializeClient();
+            validateKey();
         } catch (KmsException e) {
             logger.error("Encountered an error initializing the AWS KMS Client: {}", e.getMessage());
             throw new SensitivePropertyProtectionException("Error initializing the AWS KMS Client", e);
@@ -42,26 +72,40 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
     }
 
     /**
-     * Validates the key ARN provided by the user.
-     *
-     * @param keyId the ARN to be sent to the AWS KMS service
-     * @return the ARN to be sent to the AWS KMS service
+     * Initializes the private credentials variable using the provided bootstrapProperties
+     * @param bootstrapProperties
      */
-    private String validateKey(String keyId) throws KmsException, SensitivePropertyProtectionException {
+    private void initializeCredentials(BootstrapProperties bootstrapProperties) {
+        String accessKeyId = bootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME);
+        String secretKeyId = bootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME);
+        this.credentials = AwsBasicCredentials.create(accessKeyId, secretKeyId);
+    }
+
+    /**
+     * Initializes the KMS Client to be used for encrypt, decrypt and other interactions with AWS KMS
+     */
+    private void initializeClient() {
+        this.client = KmsClient.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .build();
+    }
+
+    /**
+     * Validates the key ARN provided by the user.
+     */
+    private void validateKey() throws KmsException, SensitivePropertyProtectionException {
         if (keyId == null || StringUtils.isBlank(keyId)) {
             throw new SensitivePropertyProtectionException("The key cannot be empty");
         }
 
         // asking for a Key Description is the best way to check whether a key is valid
         // because AWS KMS accepts various formats for its keys.
-        KmsClient kmsClient = KmsClient.builder()
-                .build();
 
         DescribeKeyRequest request = DescribeKeyRequest.builder()
                 .keyId(keyId)
                 .build();
 
-        DescribeKeyResponse response = kmsClient.describeKey(request);
+        DescribeKeyResponse response = this.client.describeKey(request);
         KeyMetadata metadata = response.keyMetadata();
 
 
@@ -69,10 +113,55 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
         if (!metadata.enabled()) {
             throw new SensitivePropertyProtectionException("The key is not enabled");
         }
+    }
 
-        kmsClient.close();
+    @Override
+    protected PropertyProtectionScheme getProtectionScheme() {
+        return PropertyProtectionScheme.AWS;
+    }
 
-        return keyId;
+    /**
+     * Checks if we have credentials for AWS
+     * Note: This only checks if there is a access-key-id and secret-key-id, it does not check if they are valid
+     * @param bootstrapProperties
+     * @return True if there is a form of credentials
+     */
+    private boolean credentialsPresent(BootstrapProperties bootstrapProperties) {
+        if (bootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME, null) == null) {
+            return false;
+        }
+        if (bootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME, null) == null) {
+            return false;
+        }
+        return true;
+    }
+
+
+    /**
+     * Checks if we have a key ID from AWS KMS.
+     * Note: This only checks if there is a key specified. This does not verify if the key is correctly specified or not
+     *       Also if key is present, stores it in this.keyId
+     * @param bootstrapProperties
+     * @return True if there is a key ID
+     */
+    private boolean keyPresent(BootstrapProperties bootstrapProperties) {
+        if (bootstrapProperties.getProperty(KMS_KEY_PROPS_NAME, null) == null) {
+            return false;
+        }
+
+        this.keyId = bootstrapProperties.getProperty(KMS_KEY_PROPS_NAME);
+        return true;
+    }
+
+    @Override
+    protected boolean isSupported(BootstrapProperties bootstrapProperties) {
+        if (bootstrapProperties == null) {
+            return false;
+        }
+
+        // AWS KMS SPP is supported if there is a bootstrap key for it
+        // and there is the required credentials
+        return credentialsPresent(bootstrapProperties) && keyPresent(bootstrapProperties);
     }
 
     /**
@@ -104,10 +193,6 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
     private byte[] encrypt(byte[] input) {
         SdkBytes plainBytes = SdkBytes.fromByteArray(input);
 
-        // TODO: Verify region (??)
-        KmsClient kmsClient = KmsClient.builder().
-                build();
-
         // builds an encryption request to be sent to the kmsClient
         EncryptRequest encryptRequest = EncryptRequest.builder()
                 .keyId(this.keyId)
@@ -115,12 +200,10 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
                 .build();
 
         // sends request, records response
-        EncryptResponse response = kmsClient.encrypt(encryptRequest);
+        EncryptResponse response = this.client.encrypt(encryptRequest);
 
         // get encrypted data
         SdkBytes encryptedData = response.ciphertextBlob();
-
-        kmsClient.close();
 
         return encryptedData.asByteArray();
     }
@@ -133,10 +216,6 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
     private byte[] decrypt(byte[] input) {
         SdkBytes cipherBytes = SdkBytes.fromByteArray(input);
 
-        // TODO: Verify region (??)
-        KmsClient kmsClient = KmsClient.builder()
-                .build();
-
         // builds a decryption request to be sent to the kmsClient
         DecryptRequest decryptRequest = DecryptRequest.builder()
                 .ciphertextBlob(cipherBytes)
@@ -144,7 +223,7 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
                 .build();
 
         // sends request, records response
-        DecryptResponse response = kmsClient.decrypt(decryptRequest);
+        DecryptResponse response = this.client.decrypt(decryptRequest);
 
         // get decrypted data
         SdkBytes decryptedData = response.plaintext();
@@ -169,16 +248,12 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
             byte[] plainBytes = unprotectedValue.getBytes(StandardCharsets.UTF_8);
             byte[] cipherBytes = encrypt(plainBytes);
             logger.debug(getName() + " encrypted a sensitive value successfully");
-            return base64Encode(cipherBytes);
+            return Base64.toBase64String(cipherBytes);
         } catch (KmsException | EncoderException e) {
             final String msg = "Error encrypting a protected value";
             logger.error(msg, e);
             throw new SensitivePropertyProtectionException(msg, e);
         }
-    }
-
-    private String base64Encode(byte[] input) {
-        return Base64.toBase64String(input).replaceAll("=", "");
     }
 
     /**
@@ -204,5 +279,15 @@ public class AWSSensitivePropertyProvider implements SensitivePropertyProvider{
             logger.error(msg, e);
             throw new SensitivePropertyProtectionException(msg, e);
         }
+    }
+
+    /**
+     * Closes any clients that may have been opened by the SPP and releases
+     * any resources possibly used by any SPP implementation
+     * Note: If there is nothing to be done, then this function is a no-op
+     */
+    @Override
+    public void close() {
+        this.client.close();
     }
 }
