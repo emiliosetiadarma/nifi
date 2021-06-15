@@ -35,7 +35,13 @@ import software.amazon.awssdk.services.kms.model.EncryptResponse;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KmsException;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Properties;
 
 public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvider{
     private static final Logger logger = LoggerFactory.getLogger(AWSSensitivePropertyProvider.class);
@@ -43,18 +49,17 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     private static final String IMPLEMENTATION_NAME = "AWS KMS Sensitive Property Provider";
     private static final String IMPLEMENTATION_KEY = "aws/kms/";
     private static final String PROVIDER = "AWS";
+    private static final String BOOTSTRAP_AWS_FILE_PROPS_NAME = "nifi.bootstrap.sensitive.props.aws.properties";
     private static final String ACCESS_KEY_PROPS_NAME = "aws.access.key.id";
     private static final String SECRET_KEY_PROPS_NAME = "aws.secret.key.id";
     private static final String KMS_KEY_PROPS_NAME = "aws.kms.key.id";
 
-    private BootstrapProperties bootstrapProperties;
     private String keyId;
     private KmsClient client;
     private AwsBasicCredentials credentials;
 
     public AWSSensitivePropertyProvider(BootstrapProperties bootstrapProperties) throws SensitivePropertyProtectionException {
         super(bootstrapProperties);
-        this.bootstrapProperties = bootstrapProperties;
         try {
             if (!isSupported(bootstrapProperties)) {
                 throw new SensitivePropertyProtectionException("SPP is not supported");
@@ -73,7 +78,7 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     /**
      * Initializes the private credentials variable using the provided bootstrapProperties
-     * @param bootstrapProperties
+     * @param bootstrapProperties the properties representing bootstrap-aws.conf
      */
     private void initializeCredentials(BootstrapProperties bootstrapProperties) {
         String accessKeyId = bootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME);
@@ -123,14 +128,14 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     /**
      * Checks if we have credentials for AWS
      * Note: This only checks if there is a access-key-id and secret-key-id, it does not check if they are valid
-     * @param bootstrapProperties
+     * @param props the properties representing bootstrap-aws.conf
      * @return True if there is a form of credentials
      */
-    private boolean credentialsPresent(BootstrapProperties bootstrapProperties) {
-        if (bootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME, null) == null) {
+    private boolean credentialsPresent(BootstrapProperties props) {
+        if (props.getProperty(ACCESS_KEY_PROPS_NAME, null) == null) {
             return false;
         }
-        if (bootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME, null) == null) {
+        if (props.getProperty(SECRET_KEY_PROPS_NAME, null) == null) {
             return false;
         }
         return true;
@@ -141,15 +146,15 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * Checks if we have a key ID from AWS KMS.
      * Note: This only checks if there is a key specified. This does not verify if the key is correctly specified or not
      *       Also if key is present, stores it in this.keyId
-     * @param bootstrapProperties
+     * @param props the properties representing bootstrap-aws.conf
      * @return True if there is a key ID
      */
-    private boolean keyPresent(BootstrapProperties bootstrapProperties) {
-        if (bootstrapProperties.getProperty(KMS_KEY_PROPS_NAME, null) == null) {
+    private boolean keyPresent(BootstrapProperties props) {
+        if (props.getProperty(KMS_KEY_PROPS_NAME, null) == null) {
             return false;
         }
 
-        this.keyId = bootstrapProperties.getProperty(KMS_KEY_PROPS_NAME);
+        this.keyId = props.getProperty(KMS_KEY_PROPS_NAME);
         return true;
     }
 
@@ -159,9 +164,31 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             return false;
         }
 
-        // AWS KMS SPP is supported if there is a bootstrap key for it
-        // and there is the required credentials
-        return credentialsPresent(bootstrapProperties) && keyPresent(bootstrapProperties);
+        // get the bootstrap-aws.conf file and process it
+        String filePath = bootstrapProperties.getProperty(BOOTSTRAP_AWS_FILE_PROPS_NAME, null);
+        if (filePath == null) {
+            return false;
+        }
+
+        // Load the bootstrap-aws.conf file based on path specified in
+        // "nifi.bootstrap.sensitive.props.aws.properties" property of bootstrap.conf
+        Properties properties = new Properties();
+        Path awsBootstrapConf = Paths.get(filePath);
+        BootstrapProperties awsBootstrapProperties;
+        try (final InputStream inputStream = Files.newInputStream(awsBootstrapConf)){
+            properties.load(inputStream);
+            awsBootstrapProperties = new BootstrapProperties("aws", properties, awsBootstrapConf);
+        } catch (IOException e) {
+            return false;
+        }
+
+        if (awsBootstrapProperties == null) {
+            return false;
+        }
+
+        // AWS KMS SPP is supported if there is a key id (arn) for it,
+        // and there is the required credentials (access key id and secret key id)
+        return credentialsPresent(awsBootstrapProperties) && keyPresent(awsBootstrapProperties);
     }
 
     /**

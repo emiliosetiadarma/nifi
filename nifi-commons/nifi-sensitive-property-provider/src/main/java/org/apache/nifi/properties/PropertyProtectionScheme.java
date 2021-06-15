@@ -25,7 +25,7 @@ import java.util.Objects;
  */
 public enum PropertyProtectionScheme {
     AES_GCM("aes/gcm/(128|192|256)", "aes/gcm/%s", "AES Sensitive Property Provider", true),
-    AWS("aws/kms/", "aws/kms/%s", "AWS KMS Sensitive Property Provider", true);
+    AWS("aws/kms/", "aws/kms/%s", "AWS KMS Sensitive Property Provider", false);
     PropertyProtectionScheme(final String identifierPattern, final String identifierFormat, final String name, final boolean requiresSecretKey) {
         this.identifierPattern = identifierPattern;
         this.identifierFormat = identifierFormat;

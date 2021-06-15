@@ -71,7 +71,7 @@ public class AWSSensitivePropertyProviderIT {
 
         StringBuilder bootstrapConfText = new StringBuilder();
         bootstrapConfText.append(ACCESS_KEY_PROPS_NAME + "=" + accessKey);
-        bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + keyId);
+        bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + secretKey);
         bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + keyId);
         IOUtil.writeText(bootstrapConfText.toString(), mockBootstrapConf.toFile());
 
