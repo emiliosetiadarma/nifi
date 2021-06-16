@@ -14,9 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.properties;
+package org.apache.nifi.properties.aws;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.nifi.properties.AbstractSensitivePropertyProvider;
+import org.apache.nifi.properties.BootstrapProperties;
+import org.apache.nifi.properties.PropertyProtectionScheme;
+import org.apache.nifi.properties.SensitivePropertyProtectionException;
 import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.encoders.DecoderException;
 import org.bouncycastle.util.encoders.EncoderException;
@@ -35,7 +39,6 @@ import software.amazon.awssdk.services.kms.model.EncryptResponse;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KmsException;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -43,14 +46,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
-import java.util.Scanner;
 
-public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvider{
+public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvider {
     private static final Logger logger = LoggerFactory.getLogger(AWSSensitivePropertyProvider.class);
 
     private static final String IMPLEMENTATION_NAME = "AWS KMS Sensitive Property Provider";
     private static final String IMPLEMENTATION_KEY = "aws/kms/";
-    private static final String PROVIDER = "AWS";
+
     private static final String BOOTSTRAP_AWS_FILE_PROPS_NAME = "nifi.bootstrap.sensitive.props.aws.properties";
     private static final String ACCESS_KEY_PROPS_NAME = "aws.access.key.id";
     private static final String SECRET_KEY_PROPS_NAME = "aws.secret.key.id";
@@ -115,8 +117,6 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         DescribeKeyResponse response = this.client.describeKey(request);
         KeyMetadata metadata = response.keyMetadata();
 
-
-        // TODO: (maybe) add more checks on the key
         if (!metadata.enabled()) {
             throw new SensitivePropertyProtectionException("The key is not enabled");
         }

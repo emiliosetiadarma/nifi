@@ -14,8 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.properties;
+package org.apache.nifi.properties.aws;
 
+import org.apache.nifi.properties.BootstrapProperties;
+import org.apache.nifi.properties.aws.AWSSensitivePropertyProvider;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
