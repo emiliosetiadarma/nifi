@@ -124,7 +124,7 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     @Override
     protected PropertyProtectionScheme getProtectionScheme() {
-        return PropertyProtectionScheme.AWS;
+        return PropertyProtectionScheme.AWS_KMS;
     }
 
     /**
