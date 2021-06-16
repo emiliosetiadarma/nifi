@@ -51,19 +51,24 @@ public class AWSSensitivePropertyProviderIT {
     private static final String ACCESS_KEY_PROPS_NAME = "aws.access.key.id";
     private static final String SECRET_KEY_PROPS_NAME = "aws.secret.key.id";
     private static final String KMS_KEY_PROPS_NAME = "aws.kms.key.id";
+    private static final String BOOTSTRAP_AWS_FILE_PROPS_NAME = "nifi.bootstrap.sensitive.props.aws.properties";
 
     private static AWSSensitivePropertyProvider spp;
 
     private static BootstrapProperties props;
 
-    private static Path tempConfDir;
-    private static Path mockBootstrapConf;
+    private static Path mockBootstrapConf, mockAwsBootstrapConf;
 
-    private static void initializeBootstrapProperties() throws IOException {
-        tempConfDir = Files.createTempDirectory("conf");
-        mockBootstrapConf = Files.createTempFile("bootstrap-aws", ".conf").toAbsolutePath();
+    private static void initializeBootstrapProperties() throws IOException{
+        mockBootstrapConf = Files.createTempFile("bootstrap", ".conf").toAbsolutePath();
+        mockAwsBootstrapConf = Files.createTempFile("bootstrap-aws", ".conf").toAbsolutePath();
+        IOUtil.writeText(BOOTSTRAP_AWS_FILE_PROPS_NAME + "=" + mockAwsBootstrapConf.toAbsolutePath(), mockBootstrapConf.toFile());
 
-        mockBootstrapConf = Files.move(mockBootstrapConf, tempConfDir.resolve("bootstrap-aws.conf"));
+        final Properties bootstrapProperties = new Properties();
+        try (final InputStream inputStream = Files.newInputStream(mockBootstrapConf)) {
+            bootstrapProperties.load(inputStream);
+            props = new BootstrapProperties("nifi", bootstrapProperties, mockBootstrapConf);
+        }
 
         String accessKey = System.getProperty(ACCESS_KEY_PROPS_NAME);
         String secretKey = System.getProperty(SECRET_KEY_PROPS_NAME);
@@ -71,20 +76,15 @@ public class AWSSensitivePropertyProviderIT {
 
         StringBuilder bootstrapConfText = new StringBuilder();
         bootstrapConfText.append(ACCESS_KEY_PROPS_NAME + "=" + accessKey);
-        bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + secretKey);
+        bootstrapConfText.append("\n" + SECRET_KEY_PROPS_NAME + "=" + secretKey);
         bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + keyId);
-        IOUtil.writeText(bootstrapConfText.toString(), mockBootstrapConf.toFile());
-
-        final Properties bootstrapProperties = new Properties();
-        try (final InputStream inputStream = Files.newInputStream(mockBootstrapConf)) {
-            bootstrapProperties.load(inputStream);
-            props = new BootstrapProperties("aws", bootstrapProperties, mockBootstrapConf);
-        }
+        IOUtil.writeText(bootstrapConfText.toString(), mockAwsBootstrapConf.toFile());
     }
 
     @BeforeClass
     public static void initOnce() throws IOException {
         initializeBootstrapProperties();
+//        initializeAwsBootstrapProperties();
         Assert.assertNotNull(props);
         spp = new AWSSensitivePropertyProvider(props);
         Assert.assertNotNull(spp);
@@ -93,7 +93,7 @@ public class AWSSensitivePropertyProviderIT {
     @AfterClass
     public static void tearDownOnce() throws IOException {
         Files.deleteIfExists(mockBootstrapConf);
-        Files.deleteIfExists(tempConfDir);
+        Files.deleteIfExists(mockAwsBootstrapConf);
 
         spp.close();
     }

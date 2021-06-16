@@ -35,6 +35,7 @@ import software.amazon.awssdk.services.kms.model.EncryptResponse;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KmsException;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
+import java.util.Scanner;
 
 public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvider{
     private static final Logger logger = LoggerFactory.getLogger(AWSSensitivePropertyProvider.class);
@@ -57,6 +59,7 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     private String keyId;
     private KmsClient client;
     private AwsBasicCredentials credentials;
+    private BootstrapProperties awsBootstrapProperties;
 
     public AWSSensitivePropertyProvider(BootstrapProperties bootstrapProperties) throws SensitivePropertyProtectionException {
         super(bootstrapProperties);
@@ -64,7 +67,7 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             if (!isSupported(bootstrapProperties)) {
                 throw new SensitivePropertyProtectionException("SPP is not supported");
             }
-            initializeCredentials(bootstrapProperties);
+            initializeCredentials();
             initializeClient();
             validateKey();
         } catch (KmsException e) {
@@ -78,11 +81,10 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     /**
      * Initializes the private credentials variable using the provided bootstrapProperties
-     * @param bootstrapProperties the properties representing bootstrap-aws.conf
      */
-    private void initializeCredentials(BootstrapProperties bootstrapProperties) {
-        String accessKeyId = bootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME);
-        String secretKeyId = bootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME);
+    private void initializeCredentials() {
+        String accessKeyId = this.awsBootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME);
+        String secretKeyId = this.awsBootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME);
         this.credentials = AwsBasicCredentials.create(accessKeyId, secretKeyId);
     }
 
@@ -173,12 +175,13 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         // Load the bootstrap-aws.conf file based on path specified in
         // "nifi.bootstrap.sensitive.props.aws.properties" property of bootstrap.conf
         Properties properties = new Properties();
-        Path awsBootstrapConf = Paths.get(filePath);
-        BootstrapProperties awsBootstrapProperties;
+        Path awsBootstrapConf = Paths.get(filePath).toAbsolutePath();
+
         try (final InputStream inputStream = Files.newInputStream(awsBootstrapConf)){
             properties.load(inputStream);
             awsBootstrapProperties = new BootstrapProperties("aws", properties, awsBootstrapConf);
         } catch (IOException e) {
+            System.out.println("IOException here");
             return false;
         }
 
