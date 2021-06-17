@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.core.SdkClient;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DecryptRequest;
 import software.amazon.awssdk.services.kms.model.DecryptResponse;
@@ -60,16 +62,14 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     private String keyId;
     private KmsClient client;
-    private AwsBasicCredentials credentials;
     private BootstrapProperties awsBootstrapProperties;
 
     public AWSSensitivePropertyProvider(BootstrapProperties bootstrapProperties) throws SensitivePropertyProtectionException {
         super(bootstrapProperties);
         try {
             if (!isSupported(bootstrapProperties)) {
-                throw new SensitivePropertyProtectionException("SPP is not supported");
+                throw new SensitivePropertyProtectionException("AWS KMS SPP is not supported");
             }
-            initializeCredentials();
             initializeClient();
             validateKey();
         } catch (KmsException e) {
@@ -82,21 +82,37 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     }
 
     /**
-     * Initializes the private credentials variable using the provided bootstrapProperties
-     */
-    private void initializeCredentials() {
-        String accessKeyId = this.awsBootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME);
-        String secretKeyId = this.awsBootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME);
-        this.credentials = AwsBasicCredentials.create(accessKeyId, secretKeyId);
-    }
-
-    /**
      * Initializes the KMS Client to be used for encrypt, decrypt and other interactions with AWS KMS
+     * First attempts to use default AWS Credentials Provider Chain
+     * If that attempt fails, attempt to initialize credentials using bootstrap-aws.conf
      */
     private void initializeClient() {
-        this.client = KmsClient.builder()
-                .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                .build();
+        // attempts to initialize client with credentials provider chain
+        try {
+             this.client = KmsClient.builder()
+                     .build();
+             return;
+        } catch (KmsException e) {
+            // this exception occurs if credentials are provided but are invalid credentials
+            logger.debug("Default credentials for AWS provided are invalid, attempting to fetch from bootstrap-aws.conf");
+        } catch (SdkClientException e) {
+            // this exception occurs if default credentials are not provided
+            logger.debug("Default credentials for AWS not provided, attempting to fetch from bootstrap-aws.conf");
+        }
+
+        // if the credentials provider chain does not work, then bootstrap.aws.conf is used
+        String accessKeyId = this.awsBootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME);
+        String secretKeyId = this.awsBootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME);
+
+        try {
+            AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretKeyId);
+            this.client = KmsClient.builder()
+                    .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                    .build();
+        } catch (KmsException | NullPointerException e) {
+            logger.debug("Credentials provided in bootstrap-aws.conf are invalid");
+            throw new SensitivePropertyProtectionException("Require valid credentials to initialize KMS client");
+        }
     }
 
     /**
@@ -134,6 +150,21 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * @return True if there is a form of credentials
      */
     private boolean credentialsPresent(BootstrapProperties props) {
+        // checks default setting of credentials first by making a mock kmsClient
+        try {
+            KmsClient mockClient = KmsClient.builder()
+                    .build();
+            mockClient.close();
+            return true;
+        } catch (KmsException e) {
+            // this exception occurs if credentials are provided but are invalid credentials
+            logger.debug("Default credentials for AWS provided are invalid, attempting to fetch from bootstrap-aws.conf");
+        } catch (SdkClientException e) {
+            // this exception occurs if default credentials are not provided
+            logger.debug("Default credentials for AWS not provided, attempting to fetch from bootstrap-aws.conf");
+        }
+
+        // checks to see if there are properties in bootstrap-aws.conf that specify credentials
         if (props.getProperty(ACCESS_KEY_PROPS_NAME, null) == null) {
             return false;
         }
@@ -181,7 +212,6 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             properties.load(inputStream);
             awsBootstrapProperties = new BootstrapProperties("aws", properties, awsBootstrapConf);
         } catch (IOException e) {
-            System.out.println("IOException here");
             return false;
         }
 
