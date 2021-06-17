@@ -77,8 +77,8 @@ public class AWSSensitivePropertyProviderIT {
         String keyId = System.getProperty(KMS_KEY_PROPS_NAME);
 
         StringBuilder bootstrapConfText = new StringBuilder();
-        bootstrapConfText.append(ACCESS_KEY_PROPS_NAME + "=" + accessKey);
-        bootstrapConfText.append("\n" + SECRET_KEY_PROPS_NAME + "=" + secretKey);
+        bootstrapConfText.append(ACCESS_KEY_PROPS_NAME + "=");// + accessKey);
+        bootstrapConfText.append("\n" + SECRET_KEY_PROPS_NAME + "=");// + secretKey);
         bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + keyId);
         IOUtil.writeText(bootstrapConfText.toString(), mockAwsBootstrapConf.toFile());
     }
