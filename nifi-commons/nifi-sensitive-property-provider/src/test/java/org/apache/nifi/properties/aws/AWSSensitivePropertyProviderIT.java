@@ -40,8 +40,12 @@ import java.util.Properties;
  * Take note of the key id or arn.
  *
  * Then, set the system property -Daws.kms.key.id to the either key id value or arn value
+ *
+ * The following settings are optional. If you have a default AWS configuration and credentials in ~/.aws then
+ * it will take that. Otherwise you can set all of the following:
  * set the system property -Daws.access.key.id to the access key id
  * set the system property -Daws.secret.key.id to the secret key id
+ * set the system property -Daws.region to the region
  *
  * After you are satisfied with the test, and you don't need the key, you may schedule key deletion with:
  * aws kms schedule-key-deletion --key-id <"KeyId from earlier create-key"> --pending-window-in-days <no. of days>
@@ -52,6 +56,7 @@ public class AWSSensitivePropertyProviderIT {
     private static final String SAMPLE_PLAINTEXT = "AWSSensitivePropertyProviderIT SAMPLE-PLAINTEXT";
     private static final String ACCESS_KEY_PROPS_NAME = "aws.access.key.id";
     private static final String SECRET_KEY_PROPS_NAME = "aws.secret.key.id";
+    private static final String REGION_KEY_PROPS_NAME = "aws.region";
     private static final String KMS_KEY_PROPS_NAME = "aws.kms.key.id";
     private static final String BOOTSTRAP_AWS_FILE_PROPS_NAME = "nifi.bootstrap.sensitive.props.aws.properties";
 
@@ -74,11 +79,13 @@ public class AWSSensitivePropertyProviderIT {
 
         String accessKey = System.getProperty(ACCESS_KEY_PROPS_NAME);
         String secretKey = System.getProperty(SECRET_KEY_PROPS_NAME);
+        String region = System.getProperty(REGION_KEY_PROPS_NAME);
         String keyId = System.getProperty(KMS_KEY_PROPS_NAME);
 
         StringBuilder bootstrapConfText = new StringBuilder();
-        bootstrapConfText.append(ACCESS_KEY_PROPS_NAME + "=");// + accessKey);
-        bootstrapConfText.append("\n" + SECRET_KEY_PROPS_NAME + "=");// + secretKey);
+        bootstrapConfText.append(ACCESS_KEY_PROPS_NAME + "=" + accessKey);
+        bootstrapConfText.append("\n" + SECRET_KEY_PROPS_NAME + "=" + secretKey);
+        bootstrapConfText.append("\n" + REGION_KEY_PROPS_NAME + "=" + region);
         bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + keyId);
         IOUtil.writeText(bootstrapConfText.toString(), mockAwsBootstrapConf.toFile());
     }
@@ -86,7 +93,6 @@ public class AWSSensitivePropertyProviderIT {
     @BeforeClass
     public static void initOnce() throws IOException {
         initializeBootstrapProperties();
-//        initializeAwsBootstrapProperties();
         Assert.assertNotNull(props);
         spp = new AWSSensitivePropertyProvider(props);
         Assert.assertNotNull(spp);
