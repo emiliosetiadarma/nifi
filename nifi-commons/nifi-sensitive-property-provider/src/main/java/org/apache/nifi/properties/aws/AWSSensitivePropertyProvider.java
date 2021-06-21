@@ -66,29 +66,15 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     private static final Charset PROPERTY_CHARSET = StandardCharsets.UTF_8;
 
-    private String keyId;
     private KmsClient client;
     private BootstrapProperties awsBootstrapProperties;
-
-    private boolean initialized = false;
-    private boolean valid = false;
+    private String keyId;
 
     public AWSSensitivePropertyProvider(BootstrapProperties bootstrapProperties) throws SensitivePropertyProtectionException {
         super(bootstrapProperties);
-        try {
-            if (!isSupported(bootstrapProperties)) {
-                initialized = true;
-                return;
-            }
-            initializeClient();
-            validate();
-        } catch (KmsException e) {
-            logger.error("Encountered an error initializing the AWS KMS Client: {}", e.getMessage());
-            throw new SensitivePropertyProtectionException("Error initializing the AWS KMS Client", e);
-        } catch (SensitivePropertyProtectionException e) {
-            logger.error("Encountered an error initializing the {}: {}", IMPLEMENTATION_NAME, e.getMessage());
-            throw new SensitivePropertyProtectionException("Error initializing the AWS KMS Client", e);
-        }
+        // if either awsBootstrapProperties or keyId is loaded as null values, then isSupported will return false
+        awsBootstrapProperties = getAWSBootstrapProperties(bootstrapProperties);
+        loadKey(awsBootstrapProperties);
     }
 
     /**
@@ -98,8 +84,6 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * Note: This does not verify if credentials are valid
      */
     private void initializeClient() {
-        initialized = true;
-
         // attempts to initialize client with credentials provider chain
         try {
             DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.builder()
@@ -115,9 +99,14 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         }
 
         // if the credentials provider chain does not work, then bootstrap.aws.conf is used
-        String accessKeyId = this.awsBootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME);
-        String secretKeyId = this.awsBootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME);
-        String region = this.awsBootstrapProperties.getProperty(REGION_KEY_PROPS_NAME);
+        String accessKeyId = this.awsBootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME, null);
+        String secretKeyId = this.awsBootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME, null);
+        String region = this.awsBootstrapProperties.getProperty(REGION_KEY_PROPS_NAME, null);
+
+        if (accessKeyId == null || secretKeyId == null || region == null) {
+            logger.error("Credentials/Configuration provided in bootstrap-aws.conf are missing");
+            throw new SensitivePropertyProtectionException("Require valid credentials/configuration to initialize KMS client");
+        }
 
         try {
             AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretKeyId);
@@ -126,7 +115,7 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
                     .credentialsProvider(StaticCredentialsProvider.create(credentials))
                     .build();
         } catch (KmsException | NullPointerException | IllegalArgumentException e) {
-            logger.debug("Credentials/Configuration provided in bootstrap-aws.conf are invalid");
+            logger.error("Credentials/Configuration provided in bootstrap-aws.conf are invalid");
             throw new SensitivePropertyProtectionException("Require valid credentials/configuration to initialize KMS client");
         }
     }
@@ -156,7 +145,6 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         if (!metadata.enabled()) {
             throw new SensitivePropertyProtectionException("The key is not enabled");
         }
-        valid = true;
     }
 
     @Override
@@ -165,82 +153,30 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     }
 
     /**
-     * Checks if we have credentials and configuration for AWS
-     * Note: This only checks if there is a access-key-id, secret-key-id and region
-     *       It does not check if they are valid
+     * Checks if we have a key ID from AWS KMS and loads it into {@link #keyId}. Will load null if key is not present
+     * Note: This function does not verify if the key is correctly formatted/valid
      * @param props the properties representing bootstrap-aws.conf
-     * @return True if there is a form of credentials
      */
-    private boolean credentialsAndConfigurationPresent(BootstrapProperties props) {
-        // checks default setting of credentials first by making a mock kmsClient with default credential configuration
-        try {
-            // the following will return an error if credentials are not provided
-            DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.builder()
-                    .build();
-            credentialsProvider.resolveCredentials();
-
-            // client builder will return an error if region configuration is not provided
-            KmsClient mockClient = KmsClient.builder()
-                    .credentialsProvider(credentialsProvider)
-                    .build();
-
-            mockClient.close();
-
-            // client can be built with default credentials/configuration
-            return true;
-        } catch (SdkClientException e) {
-            // this exception occurs if default configuration is not provided
-            logger.debug("Default credentials/configuration for AWS not provided, attempting to fetch from bootstrap-aws.conf");
-        }
-
-        // checks to see if there are properties in bootstrap-aws.conf that specify credentials and region configurations
-        if (props.getProperty(ACCESS_KEY_PROPS_NAME, null) == null) {
-            return false;
-        }
-        if (props.getProperty(SECRET_KEY_PROPS_NAME, null) == null) {
-            return false;
-        }
-        if (props.getProperty(REGION_KEY_PROPS_NAME, null) == null) {
-            return false;
-        }
-
-        // client can be built with credentials/configuration given in bootstrap-aws.conf
-        return true;
+    private void loadKey(BootstrapProperties props) {
+        this.keyId = props.getProperty(KMS_KEY_PROPS_NAME, null);
     }
 
 
     /**
-     * Checks if we have a key ID from AWS KMS.
-     * Note: This only checks if there is a key specified. This does not verify if the key is correctly specified or not
-     *       Also if key is present, stores it in this.keyId
-     * @param props the properties representing bootstrap-aws.conf
-     * @return True if there is a key ID
+     * Checks bootstrap.conf to check if {@link #BOOTSTRAP_AWS_FILE_PROPS_NAME} property is configured to the
+     * bootstrap-aws.conf file. Also will load bootstrap-aws.conf to {@link #awsBootstrapProperties} if possible
+     * @param bootstrapProperties BootstrapProperties object corresponding to bootstrap.conf
+     * @return BootstrapProperties object corresponding to bootstrap-aws.conf, null otherwise
      */
-    private boolean keyPresent(BootstrapProperties props) {
-        if (props.getProperty(KMS_KEY_PROPS_NAME, null) == null) {
-            return false;
-        }
-
-        this.keyId = props.getProperty(KMS_KEY_PROPS_NAME);
-        return true;
-    }
-
-    @Override
-    protected boolean isSupported(BootstrapProperties bootstrapProperties) {
-        // Performance improvement, removes the need to do checks if the SPP has already been initialized
-        // If the SPP is already constructed, then checks if the SPP is valid
-        if (initialized) {
-            return valid;
-        }
-
+    private BootstrapProperties getAWSBootstrapProperties(BootstrapProperties bootstrapProperties) {
         if (bootstrapProperties == null) {
-            return false;
+            return null;
         }
 
         // get the bootstrap-aws.conf file and process it
         String filePath = bootstrapProperties.getProperty(BOOTSTRAP_AWS_FILE_PROPS_NAME, null);
         if (filePath == null) {
-            return false;
+            return null;
         }
 
         // Load the bootstrap-aws.conf file based on path specified in
@@ -252,18 +188,25 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             properties.load(inputStream);
             awsBootstrapProperties = new BootstrapProperties("aws", properties, awsBootstrapConf);
         } catch (IOException e) {
-            return false;
+            return null;
         }
 
-        if (awsBootstrapProperties == null) {
-            return false;
-        }
+        return awsBootstrapProperties;
+    }
 
-        // AWS KMS SPP is supported if:
-        // - there is a key id (arn)
-        // - there is the required credentials (access key id and secret key id)
-        // - there is the required configuration (region settings)
-        return keyPresent(awsBootstrapProperties) && credentialsAndConfigurationPresent(awsBootstrapProperties);
+    /**
+     * Checks bootstrap-aws.conf for the required configurations for AWS KMS encrypt/decrypt operations
+     * Note: This does not check for credentials/region configurations.
+     *       Credentials/configuration will be checked during the first protect/unprotect call during runtime.
+     * @return True if bootstrap-aws.conf contains the required properties for AWS SPP, False otherwise
+     */
+    private boolean hasRequiredAWSProperties() {
+        return awsBootstrapProperties != null && keyId != null;
+    }
+
+    @Override
+    public boolean isSupported() {
+        return hasRequiredAWSProperties();
     }
 
     /**
@@ -346,10 +289,16 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             throw new IllegalArgumentException ("Cannot encrypt an empty value");
         }
 
-        // if SPP is invalid
-        if (!valid) {
-            throw new SensitivePropertyProtectionException("AWS SPP is invalid, cannot be used to protect a value");
+        if (this.client == null) {
+            try {
+                initializeClient();
+                validate();
+            } catch (KmsException | SensitivePropertyProtectionException e) {
+                logger.error("Encountered an error initializing the {}: {}", IMPLEMENTATION_NAME, e.getMessage());
+                throw new SensitivePropertyProtectionException("Error initializing the AWS KMS Client", e);
+            }
         }
+
 
         try {
             byte[] plainBytes = unprotectedValue.getBytes(PROPERTY_CHARSET);
@@ -376,9 +325,14 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             throw new IllegalArgumentException("Cannot decrypt a null cipher");
         }
 
-        // if SPP is invalid
-        if (!valid) {
-            throw new SensitivePropertyProtectionException("AWS SPP is invalid, cannot be used to unprotect a value");
+        if (this.client == null) {
+            try {
+                initializeClient();
+                validate();
+            } catch (KmsException | SensitivePropertyProtectionException e) {
+                logger.error("Encountered an error initializing the {}: {}", IMPLEMENTATION_NAME, e.getMessage());
+                throw new SensitivePropertyProtectionException("Error initializing the AWS KMS Client", e);
+            }
         }
 
         try {
