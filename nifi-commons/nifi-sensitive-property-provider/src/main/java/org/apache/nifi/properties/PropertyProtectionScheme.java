@@ -24,7 +24,8 @@ import java.util.Objects;
  * SensitivePropertyProvider.
  */
 public enum PropertyProtectionScheme {
-    AES_GCM("aes/gcm/(128|192|256)", "aes/gcm/%s", "AES Sensitive Property Provider", true);
+    AES_GCM("aes/gcm/(128|192|256)", "aes/gcm/%s", "AES Sensitive Property Provider", true),
+    GCP("gcp/kms/", "gcp/kms/%s", "GCP Cloud KMS Sensitive Property Provider", false);
 
     PropertyProtectionScheme(final String identifierPattern, final String identifierFormat, final String name, final boolean requiresSecretKey) {
         this.identifierPattern = identifierPattern;

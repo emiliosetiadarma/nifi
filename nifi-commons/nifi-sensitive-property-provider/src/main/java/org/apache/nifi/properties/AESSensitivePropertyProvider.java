@@ -81,7 +81,7 @@ public class AESSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     }
 
     @Override
-    protected boolean isSupported(final BootstrapProperties bootstrapProperties) {
+    public boolean isSupported() {
         return true; // AES protection is always supported
     }
 
@@ -256,5 +256,10 @@ public class AESSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     public static String getDelimiter() {
         return DELIMITER;
+    }
+
+    @Override
+    public void close() {
+        return;
     }
 }
