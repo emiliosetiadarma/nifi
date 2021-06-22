@@ -143,7 +143,7 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * Checks bootstrap-gcp.conf for the required configurations for Google Cloud KMS encrypt/decrypt operations
      * @return True if bootstrap-gcp.conf contains the required properties for GCP KMS SPP, False otherwise
      */
-    private boolean hasRequiredAWSProperties() {
+    private boolean hasRequiredGCPProperties() {
         if (gcpBootstrapProperties == null) {
             return false;
         }
@@ -166,7 +166,7 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     @Override
     public boolean isSupported() {
-        return hasRequiredAWSProperties();
+        return hasRequiredGCPProperties();
     }
 
     @Override
