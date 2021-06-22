@@ -74,7 +74,7 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         super(bootstrapProperties);
         // if either awsBootstrapProperties or keyId is loaded as null values, then isSupported will return false
         awsBootstrapProperties = getAWSBootstrapProperties(bootstrapProperties);
-        loadKey(awsBootstrapProperties);
+        loadRequiredAWSProperties(awsBootstrapProperties);
     }
 
     /**
@@ -147,17 +147,12 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         }
     }
 
-    @Override
-    protected PropertyProtectionScheme getProtectionScheme() {
-        return PropertyProtectionScheme.AWS_KMS;
-    }
-
     /**
      * Checks if we have a key ID from AWS KMS and loads it into {@link #keyId}. Will load null if key is not present
      * Note: This function does not verify if the key is correctly formatted/valid
      * @param props the properties representing bootstrap-aws.conf
      */
-    private void loadKey(BootstrapProperties props) {
+    private void loadRequiredAWSProperties(BootstrapProperties props) {
         this.keyId = props.getProperty(KMS_KEY_PROPS_NAME, null);
     }
 
@@ -207,6 +202,11 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     @Override
     public boolean isSupported() {
         return hasRequiredAWSProperties();
+    }
+
+    @Override
+    protected PropertyProtectionScheme getProtectionScheme() {
+        return PropertyProtectionScheme.AWS_KMS;
     }
 
     /**

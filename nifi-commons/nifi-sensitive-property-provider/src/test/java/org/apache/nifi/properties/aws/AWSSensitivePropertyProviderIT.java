@@ -64,12 +64,12 @@ public class AWSSensitivePropertyProviderIT {
 
     private static BootstrapProperties props;
 
-    private static Path mockBootstrapConf, mockAwsBootstrapConf;
+    private static Path mockBootstrapConf, mockAWSBootstrapConf;
 
     private static void initializeBootstrapProperties() throws IOException{
         mockBootstrapConf = Files.createTempFile("bootstrap", ".conf").toAbsolutePath();
-        mockAwsBootstrapConf = Files.createTempFile("bootstrap-aws", ".conf").toAbsolutePath();
-        IOUtil.writeText(BOOTSTRAP_AWS_FILE_PROPS_NAME + "=" + mockAwsBootstrapConf.toAbsolutePath(), mockBootstrapConf.toFile());
+        mockAWSBootstrapConf = Files.createTempFile("bootstrap-aws", ".conf").toAbsolutePath();
+        IOUtil.writeText(BOOTSTRAP_AWS_FILE_PROPS_NAME + "=" + mockAWSBootstrapConf.toAbsolutePath(), mockBootstrapConf.toFile());
 
         final Properties bootstrapProperties = new Properties();
         try (final InputStream inputStream = Files.newInputStream(mockBootstrapConf)) {
@@ -87,7 +87,7 @@ public class AWSSensitivePropertyProviderIT {
         bootstrapConfText.append("\n" + SECRET_KEY_PROPS_NAME + "=" + secretKey);
         bootstrapConfText.append("\n" + REGION_KEY_PROPS_NAME + "=" + region);
         bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + keyId);
-        IOUtil.writeText(bootstrapConfText.toString(), mockAwsBootstrapConf.toFile());
+        IOUtil.writeText(bootstrapConfText.toString(), mockAWSBootstrapConf.toFile());
     }
 
     @BeforeClass
@@ -101,7 +101,7 @@ public class AWSSensitivePropertyProviderIT {
     @AfterClass
     public static void tearDownOnce() throws IOException {
         Files.deleteIfExists(mockBootstrapConf);
-        Files.deleteIfExists(mockAwsBootstrapConf);
+        Files.deleteIfExists(mockAWSBootstrapConf);
 
         spp.close();
     }
