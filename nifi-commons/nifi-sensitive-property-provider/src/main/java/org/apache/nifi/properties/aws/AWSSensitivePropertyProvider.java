@@ -168,6 +168,8 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             return null;
         }
 
+        BootstrapProperties cloudBootstrapProperties;
+
         // get the bootstrap-aws.conf file and process it
         String filePath = bootstrapProperties.getProperty(BOOTSTRAP_AWS_FILE_PROPS_NAME, null);
         if (filePath == null) {
@@ -181,12 +183,12 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
         try (final InputStream inputStream = Files.newInputStream(awsBootstrapConf)){
             properties.load(inputStream);
-            awsBootstrapProperties = new BootstrapProperties("aws", properties, awsBootstrapConf);
+            cloudBootstrapProperties = new BootstrapProperties("aws", properties, awsBootstrapConf);
         } catch (IOException e) {
             return null;
         }
 
-        return awsBootstrapProperties;
+        return cloudBootstrapProperties;
     }
 
     /**
