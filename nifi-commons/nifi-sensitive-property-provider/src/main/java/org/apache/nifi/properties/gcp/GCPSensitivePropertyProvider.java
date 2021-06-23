@@ -70,6 +70,14 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     }
 
     /**
+     * Checks if the client used to communicate with Google Cloud KMS service is open
+     * @return true if the client has been initialized and open, false otherwise
+     */
+    private boolean isClientOpen() {
+        return client != null;
+    }
+
+    /**
      * Validates the key details provided by the user.
      * @return the CryptoKeyName representing the key to be used by Google KMS
      */
@@ -102,7 +110,7 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         String locationId = props.getProperty(LOCATION_ID_PROPS_NAME, null);
         String keyRingId = props.getProperty(KEYRING_ID_PROPS_NAME, null);
         String keyId = props.getProperty(KEY_ID_PROPS_NAME, null);
-        this.keyName = CryptoKeyName.of(projectId, locationId, keyRingId, keyId);
+        keyName = CryptoKeyName.of(projectId, locationId, keyRingId, keyId);
     }
 
     /**
@@ -120,7 +128,7 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
         // get the bootstrap-gcp.conf file and process it
         String filePath = bootstrapProperties.getProperty(BOOTSTRAP_GCP_FILE_PROPS_NAME, null);
-        if (filePath == null) {
+        if (StringUtils.isBlank(filePath)) {
             return null;
         }
 
@@ -148,16 +156,16 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
             return false;
         }
 
-        if (gcpBootstrapProperties.getProperty(PROJECT_ID_PROPS_NAME, null) == null) {
+        if (StringUtils.isBlank(gcpBootstrapProperties.getProperty(PROJECT_ID_PROPS_NAME))) {
             return false;
         }
-        if (gcpBootstrapProperties.getProperty(LOCATION_ID_PROPS_NAME, null) == null) {
+        if (StringUtils.isBlank(gcpBootstrapProperties.getProperty(LOCATION_ID_PROPS_NAME))) {
             return false;
         }
-        if (gcpBootstrapProperties.getProperty(KEYRING_ID_PROPS_NAME, null) == null) {
+        if (StringUtils.isBlank(gcpBootstrapProperties.getProperty(KEYRING_ID_PROPS_NAME))) {
             return false;
         }
-        if (gcpBootstrapProperties.getProperty(KEY_ID_PROPS_NAME, null) == null) {
+        if (StringUtils.isBlank(gcpBootstrapProperties.getProperty(KEY_ID_PROPS_NAME))) {
             return false;
         }
 
@@ -171,7 +179,7 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     @Override
     protected PropertyProtectionScheme getProtectionScheme() {
-        return PropertyProtectionScheme.GCP;
+        return PropertyProtectionScheme.GCP_KMS;
     }
 
     @Override
@@ -206,11 +214,11 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     @Override
     public String protect(String unprotectedValue) throws SensitivePropertyProtectionException {
-        if (unprotectedValue == null || unprotectedValue.trim().length() == 0) {
-            throw new IllegalArgumentException("Cannot encrypt an empty value");
+        if (StringUtils.isBlank(unprotectedValue)) {
+            throw new IllegalArgumentException("Cannot encrypt an empty/blank value");
         }
 
-        if (this.client == null) {
+        if (!isClientOpen()) {
             try {
                 initializeClient();
                 validate();
@@ -234,11 +242,11 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     @Override
     public String unprotect(String protectedValue) throws SensitivePropertyProtectionException {
-        if (protectedValue == null) {
-            throw new IllegalArgumentException("Cannot decrypt a null cipher");
+        if (StringUtils.isBlank(protectedValue)) {
+            throw new IllegalArgumentException("Cannot decrypt an empty/blank cipher");
         }
 
-        if (this.client == null) {
+        if (!isClientOpen()) {
             try {
                 initializeClient();
                 validate();
@@ -267,8 +275,9 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      */
     @Override
     public void close() {
-        if (this.client != null) {
-            this.client.close();
+        if (isClientOpen()) {
+            client.close();
+            client = null;
         }
     }
 }

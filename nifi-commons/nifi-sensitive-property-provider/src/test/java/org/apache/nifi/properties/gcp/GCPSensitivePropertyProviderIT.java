@@ -38,6 +38,8 @@ public class GCPSensitivePropertyProviderIT {
     private static final String KEY_ID_PROPS_NAME = "gcp.kms.key.id";
     private static final String BOOTSTRAP_GCP_FILE_PROPS_NAME = "nifi.bootstrap.sensitive.props.gcp.properties";
 
+    private static final String EMPTY_PROPERTY = "";
+
     private static GCPSensitivePropertyProvider spp;
 
     private static BootstrapProperties props;
@@ -55,10 +57,10 @@ public class GCPSensitivePropertyProviderIT {
             props = new BootstrapProperties("nifi", bootstrapProperties, mockBootstrapConf);
         }
 
-        String projectId = System.getProperty(PROJECT_ID_PROPS_NAME);
-        String locationId = System.getProperty(LOCATION_ID_PROPS_NAME);
-        String keyringId = System.getProperty(KEYRING_ID_PROPS_NAME);
-        String keyId = System.getProperty(KEY_ID_PROPS_NAME);
+        String projectId = System.getProperty(PROJECT_ID_PROPS_NAME, EMPTY_PROPERTY);
+        String locationId = System.getProperty(LOCATION_ID_PROPS_NAME, EMPTY_PROPERTY);
+        String keyringId = System.getProperty(KEYRING_ID_PROPS_NAME, EMPTY_PROPERTY);
+        String keyId = System.getProperty(KEY_ID_PROPS_NAME, EMPTY_PROPERTY);
 
         StringBuilder bootstrapConfText = new StringBuilder();
         bootstrapConfText.append(PROJECT_ID_PROPS_NAME + "=" + projectId);
