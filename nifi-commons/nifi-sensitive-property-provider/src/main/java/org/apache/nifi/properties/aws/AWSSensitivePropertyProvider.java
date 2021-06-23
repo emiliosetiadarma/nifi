@@ -84,40 +84,39 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * Note: This does not verify if credentials are valid
      */
     private void initializeClient() {
-        // attempts to initialize client with credentials provider chain
-        try {
-            DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.builder()
-                    .build();
-            credentialsProvider.resolveCredentials();
-            this.client = KmsClient.builder()
-                    .credentialsProvider(credentialsProvider)
-                    .build();
-            return;
-        } catch (SdkClientException e) {
-            // this exception occurs if default credentials are not provided
-            logger.debug("Default credentials/configuration for AWS not provided, attempting to fetch from bootstrap-aws.conf");
-        }
-
-        // if the credentials provider chain does not work, then bootstrap.aws.conf is used
         String accessKeyId = this.awsBootstrapProperties.getProperty(ACCESS_KEY_PROPS_NAME, null);
         String secretKeyId = this.awsBootstrapProperties.getProperty(SECRET_KEY_PROPS_NAME, null);
         String region = this.awsBootstrapProperties.getProperty(REGION_KEY_PROPS_NAME, null);
 
-        if (accessKeyId == null || secretKeyId == null || region == null) {
-            logger.error("Credentials/Configuration provided in bootstrap-aws.conf are missing");
-            throw new SensitivePropertyProtectionException("Require valid credentials/configuration to initialize KMS client");
+        if (accessKeyId != null && secretKeyId != null && region != null) {
+            logger.debug("Credentials/Configuration provided in bootstrap-aws.conf");
+            try {
+                AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretKeyId);
+                this.client = KmsClient.builder()
+                        .region(Region.of(region))
+                        .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                        .build();
+            } catch (KmsException | NullPointerException | IllegalArgumentException e) {
+                logger.error("Credentials/Configuration provided in bootstrap-aws.conf are invalid");
+                throw new SensitivePropertyProtectionException("Require valid credentials/configuration to initialize KMS client");
+            }
+        } else {
+            // attempts to initialize client with credentials provider chain
+            logger.debug("Credentials/Configuration not provided in bootstrap-aws.conf, attempting to use default configuration");
+            try {
+                DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.builder()
+                        .build();
+                credentialsProvider.resolveCredentials();
+                this.client = KmsClient.builder()
+                        .credentialsProvider(credentialsProvider)
+                        .build();
+            } catch (SdkClientException e) {
+                // this exception occurs if default credentials are not provided
+                logger.error("Default credentials/configuration for AWS are invalid");
+                throw new SensitivePropertyProtectionException("Require valid credentials/configuration to initialize KMS client");
+            }
         }
 
-        try {
-            AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKeyId, secretKeyId);
-            this.client = KmsClient.builder()
-                    .region(Region.of(region))
-                    .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                    .build();
-        } catch (KmsException | NullPointerException | IllegalArgumentException e) {
-            logger.error("Credentials/Configuration provided in bootstrap-aws.conf are invalid");
-            throw new SensitivePropertyProtectionException("Require valid credentials/configuration to initialize KMS client");
-        }
     }
 
     /**
