@@ -60,6 +60,8 @@ public class AWSSensitivePropertyProviderIT {
     private static final String KMS_KEY_PROPS_NAME = "aws.kms.key.id";
     private static final String BOOTSTRAP_AWS_FILE_PROPS_NAME = "nifi.bootstrap.sensitive.props.aws.properties";
 
+    private static final String EMPTY_PROPERTY = "";
+
     private static AWSSensitivePropertyProvider spp;
 
     private static BootstrapProperties props;
@@ -77,16 +79,17 @@ public class AWSSensitivePropertyProviderIT {
             props = new BootstrapProperties("nifi", bootstrapProperties, mockBootstrapConf);
         }
 
-        String accessKey = System.getProperty(ACCESS_KEY_PROPS_NAME);
-        String secretKey = System.getProperty(SECRET_KEY_PROPS_NAME);
-        String region = System.getProperty(REGION_KEY_PROPS_NAME);
-        String keyId = System.getProperty(KMS_KEY_PROPS_NAME);
+        String accessKey = System.getProperty(ACCESS_KEY_PROPS_NAME, EMPTY_PROPERTY);
+        String secretKey = System.getProperty(SECRET_KEY_PROPS_NAME, EMPTY_PROPERTY);
+        String region = System.getProperty(REGION_KEY_PROPS_NAME, EMPTY_PROPERTY);
+        String keyId = System.getProperty(KMS_KEY_PROPS_NAME, EMPTY_PROPERTY);
 
         StringBuilder bootstrapConfText = new StringBuilder();
         bootstrapConfText.append(ACCESS_KEY_PROPS_NAME + "=" + accessKey);
         bootstrapConfText.append("\n" + SECRET_KEY_PROPS_NAME + "=" + secretKey);
         bootstrapConfText.append("\n" + REGION_KEY_PROPS_NAME + "=" + region);
         bootstrapConfText.append("\n" + KMS_KEY_PROPS_NAME + "=" + keyId);
+
         IOUtil.writeText(bootstrapConfText.toString(), mockAWSBootstrapConf.toFile());
     }
 
