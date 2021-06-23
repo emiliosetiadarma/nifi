@@ -363,7 +363,7 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      */
     @Override
     public void close() {
-        if (!isClientOpen()) {
+        if (isClientOpen()) {
             client.close();
             client = null;
         }
