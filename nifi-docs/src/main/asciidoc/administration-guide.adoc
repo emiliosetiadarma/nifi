@@ -139,8 +139,14 @@ Set how long sockets stay in a TIMED_WAIT state when closed::
 You don't want your sockets to sit and linger too long given that you want to be
 able to quickly setup and teardown new sockets.  It is a good idea to read more about
 it and adjust to something like
+
+for kernel 2.6
 ----
 sudo sysctl -w net.ipv4.netfilter.ip_conntrack_tcp_timeout_time_wait="1"
+----
+for kernel 3.0
+----
+sudo sysctl -w net.netfilter.nf_conntrack_tcp_timeout_time_wait="1"
 ----
 
 Tell Linux you never want NiFi to swap::
@@ -1759,7 +1765,7 @@ All options require a password (`nifi.sensitive.props.key` value) of *at least 1
 [[encrypt-config_tool]]
 == Encrypted Passwords in Configuration Files
 
-In order to facilitate the secure setup of NiFi, you can use the `encrypt-config` command line utility to encrypt raw configuration values that NiFi decrypts in memory on startup. This extensible protection scheme transparently allows NiFi to use raw values in operation, while protecting them at rest.  In the future, hardware security modules (HSM) and external secure storage mechanisms will be integrated, but for now, an AES encryption provider is the default implementation.
+In order to facilitate the secure setup of NiFi, you can use the `encrypt-config` command line utility to encrypt raw configuration values that NiFi decrypts in memory on startup. This extensible protection scheme transparently allows NiFi to use raw values in operation, while protecting them at rest.  In addition to the default AES encryption provider, a HashiCorp Vault encryption provider can be configured in the `bootstrap-hashicorp-vault.properties` file.
 
 This is a change in behavior; prior to 1.0, all configuration values were stored in plaintext on the file system. POSIX file permissions were recommended to limit unauthorized access to these files.
 
@@ -4085,6 +4091,7 @@ The value of the `nifi.nar.library.provider.<providerName>.implementation` must 
 | Name                       |  Description
 | resources                  |  List of HDFS resources, separated by comma.
 | source.directory           |  The source directory of NAR files within HDFS. Note: the provider does not check for files recursively.
+| storage.location           |  Optional. If set the storage location defined in the core-site.xml will be overwritten by this value.
 | kerberos.principal         |  Optional. Kerberos principal to authenticate as.
 | kerberos.keytab            |  Optional. Kerberos keytab associated with the principal.
 | kerberos.password          |  Optional. Kerberos password associated with the principal.
