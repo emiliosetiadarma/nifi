@@ -74,7 +74,9 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
         super(bootstrapProperties);
         // if either awsBootstrapProperties or keyId is loaded as null values, then isSupported will return false
         awsBootstrapProperties = getAWSBootstrapProperties(bootstrapProperties);
-        loadRequiredAWSProperties(awsBootstrapProperties);
+        if (awsBootstrapProperties != null) {
+            loadRequiredAWSProperties(awsBootstrapProperties);
+        }
     }
 
     /**
@@ -160,7 +162,9 @@ public class AWSSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * @param props the properties representing bootstrap-aws.conf
      */
     private void loadRequiredAWSProperties(BootstrapProperties props) {
-        keyId = props.getProperty(KMS_KEY_PROPS_NAME);
+        if (props != null) {
+            keyId = props.getProperty(KMS_KEY_PROPS_NAME);
+        }
     }
 
 
