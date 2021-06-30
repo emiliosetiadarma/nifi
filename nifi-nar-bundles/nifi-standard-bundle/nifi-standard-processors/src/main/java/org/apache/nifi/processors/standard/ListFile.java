@@ -176,7 +176,7 @@ public class ListFile extends AbstractListProcessor<FileInfo> {
             .name("Ignore Input Directory On Recurse")
             .description("Indicates whether to ignore files in input directory if " + RECURSE.getName() + " is true")
             .allowableValues("true", "false")
-            .defaultValue("false")
+            .defaultValue("true")
             .required(true)
             .build();
 
