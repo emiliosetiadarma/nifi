@@ -1,7 +1,5 @@
 package org.apache.nifi.properties;
 
-import org.apache.nifi.properties.BootstrapProperties;
-import org.apache.nifi.properties.GCPSensitivePropertyProvider;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -87,7 +85,7 @@ public class GCPSensitivePropertyProviderIT {
         Files.deleteIfExists(mockBootstrapConf);
         Files.deleteIfExists(mockGCPBootstrapConf);
 
-        spp.close();
+        spp.cleanUp();
     }
 
     @Test

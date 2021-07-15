@@ -253,7 +253,7 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * Closes GCP KMS client that may have been opened.
      */
     @Override
-    public void close() {
+    public void cleanUp() {
         if (client != null) {
             client.close();
             client = null;

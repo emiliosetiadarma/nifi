@@ -135,7 +135,7 @@ public abstract class AbstractHashiCorpVaultSensitivePropertyProvider extends Ab
      * Note: If there is nothing to be done, then this function is a no-op
      */
     @Override
-    public void close() {
+    public void cleanUp() {
 
     }
 }

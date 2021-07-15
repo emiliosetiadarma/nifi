@@ -62,5 +62,5 @@ public interface SensitivePropertyProvider {
      * any resources possibly used by any SPP implementation
      * Note: If there is nothing to be done, then this function is a no-op
      */
-    void close();
+    void cleanUp();
 }

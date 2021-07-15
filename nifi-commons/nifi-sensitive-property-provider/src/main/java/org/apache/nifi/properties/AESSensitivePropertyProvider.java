@@ -259,7 +259,7 @@ public class AESSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     }
 
     @Override
-    public void close() {
+    public void cleanUp() {
         return;
     }
 }
