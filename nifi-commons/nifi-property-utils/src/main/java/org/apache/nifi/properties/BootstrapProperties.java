@@ -33,7 +33,7 @@ public class BootstrapProperties extends StandardReadableProperties {
     public enum BootstrapPropertyKey {
         SENSITIVE_KEY("bootstrap.sensitive.key"),
         HASHICORP_VAULT_SENSITIVE_PROPERTY_PROVIDER_CONF("bootstrap.protection.hashicorp.vault.conf"),
-        GCP_KMS_SENSITIVE_PROPERTY_PROVIDER_CONF("bootstrap.properties.gcp.kms.conf");
+        GCP_KMS_SENSITIVE_PROPERTY_PROVIDER_CONF("bootstrap.protection.gcp.kms.conf");
 
         private final String key;
 
