@@ -23,10 +23,10 @@ import java.util.Properties;
  * Take note of the project name, location, keyring name and key name.
  *
  * Then, set the system properties as follows:
- * -Dgcp.kms.project.id=<project>
- * -Dgcp.kms.location.id=<location>
- * -Dgcp.kms.keyring.id=<key ring name>
- * -Dgcp.kms.key.id=<key name>
+ * -Dgcp.kms.project=<project>
+ * -Dgcp.kms.location=<location>
+ * -Dgcp.kms.keyring=<key ring name>
+ * -Dgcp.kms.key=<key name>
  * when running the integration tests
  */
 
