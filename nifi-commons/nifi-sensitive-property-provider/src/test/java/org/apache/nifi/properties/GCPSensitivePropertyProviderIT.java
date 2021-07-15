@@ -1,12 +1,14 @@
-package org.apache.nifi.properties.gcp;
+package org.apache.nifi.properties;
 
 import org.apache.nifi.properties.BootstrapProperties;
+import org.apache.nifi.properties.GCPSensitivePropertyProvider;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.internal.util.io.IOUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +38,7 @@ public class GCPSensitivePropertyProviderIT {
     private static final String LOCATION_ID_PROPS_NAME = "gcp.kms.location.id";
     private static final String KEYRING_ID_PROPS_NAME = "gcp.kms.keyring.id";
     private static final String KEY_ID_PROPS_NAME = "gcp.kms.key.id";
-    private static final String BOOTSTRAP_GCP_FILE_PROPS_NAME = "nifi.bootstrap.sensitive.props.gcp.properties";
+    private static final String BOOTSTRAP_GCP_FILE_PROPS_NAME = "nifi.bootstrap.protection.gcp.kms.conf";
 
     private static final String EMPTY_PROPERTY = "";
 
@@ -45,6 +47,8 @@ public class GCPSensitivePropertyProviderIT {
     private static BootstrapProperties props;
 
     private static Path mockBootstrapConf, mockGCPBootstrapConf;
+
+    private static final Logger logger = LoggerFactory.getLogger(GCPSensitivePropertyProviderIT.class);
 
     private static void initializeBootstrapProperties() throws IOException{
         mockBootstrapConf = Files.createTempFile("bootstrap", ".conf").toAbsolutePath();
@@ -87,11 +91,18 @@ public class GCPSensitivePropertyProviderIT {
     }
 
     @Test
-    public void testEncryptDecrypt() { runEncryptDecryptTest(); }
+    public void testEncryptDecrypt() {
+        logger.info("Running testEncryptDecrypt of AWS SPP integration test");
+        runEncryptDecryptTest();
+        logger.info("testEncryptDecrypt of AWS SPP integration test completed");
+    }
 
     private static void runEncryptDecryptTest() {
+        logger.info("Plaintext: " + SAMPLE_PLAINTEXT);
         String protectedValue = spp.protect(SAMPLE_PLAINTEXT);
+        logger.info("Protected Value: " + protectedValue);
         String unprotectedValue = spp.unprotect(protectedValue);
+        logger.info("Unprotected Value: " + unprotectedValue);
 
         Assert.assertEquals(SAMPLE_PLAINTEXT, unprotectedValue);
         Assert.assertNotEquals(SAMPLE_PLAINTEXT, protectedValue);
