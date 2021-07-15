@@ -41,7 +41,7 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
 
     GCPSensitivePropertyProvider(final BootstrapProperties bootstrapProperties) {
         super(bootstrapProperties);
-        Objects.requireNonNull(bootstrapProperties, "The file bootstrap.conf provided to AWS SPP is null");
+        Objects.requireNonNull(bootstrapProperties, "The file bootstrap.conf provided to GCP SPP is null");
         gcpBootstrapProperties = getGCPBootstrapProperties(bootstrapProperties);
         loadRequiredGCPProperties(gcpBootstrapProperties);
     }
@@ -93,14 +93,15 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
      * @param props the properties representing bootstrap-gcp.conf.
      */
     private void loadRequiredGCPProperties(final BootstrapProperties props) {
-        final String projectId = props.getProperty(PROJECT_ID_PROPS_NAME, null);
-        final String locationId = props.getProperty(LOCATION_ID_PROPS_NAME, null);
-        final String keyRingId = props.getProperty(KEYRING_ID_PROPS_NAME, null);
-        final String keyId = props.getProperty(KEY_ID_PROPS_NAME, null);
-        if (StringUtils.isNoneBlank(projectId, locationId, keyRingId, keyId)) {
-            keyName = CryptoKeyName.of(projectId, locationId, keyRingId, keyId);
+        if (props != null) {
+            final String projectId = props.getProperty(PROJECT_ID_PROPS_NAME, null);
+            final String locationId = props.getProperty(LOCATION_ID_PROPS_NAME, null);
+            final String keyRingId = props.getProperty(KEYRING_ID_PROPS_NAME, null);
+            final String keyId = props.getProperty(KEY_ID_PROPS_NAME, null);
+            if (StringUtils.isNoneBlank(projectId, locationId, keyRingId, keyId)) {
+                keyName = CryptoKeyName.of(projectId, locationId, keyRingId, keyId);
+            }
         }
-
     }
 
     /**
