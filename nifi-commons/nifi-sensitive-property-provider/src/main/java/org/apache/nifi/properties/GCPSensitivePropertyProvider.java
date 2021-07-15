@@ -28,10 +28,10 @@ public class GCPSensitivePropertyProvider extends AbstractSensitivePropertyProvi
     private static final Logger logger = LoggerFactory.getLogger(GCPSensitivePropertyProvider.class);
 
     private static final String GCP_PREFIX = "gcp";
-    private static final String PROJECT_ID_PROPS_NAME = "gcp.kms.project.id";
-    private static final String LOCATION_ID_PROPS_NAME = "gcp.kms.location.id";
-    private static final String KEYRING_ID_PROPS_NAME = "gcp.kms.keyring.id";
-    private static final String KEY_ID_PROPS_NAME = "gcp.kms.key.id";
+    private static final String PROJECT_ID_PROPS_NAME = "gcp.kms.project";
+    private static final String LOCATION_ID_PROPS_NAME = "gcp.kms.location";
+    private static final String KEYRING_ID_PROPS_NAME = "gcp.kms.keyring";
+    private static final String KEY_ID_PROPS_NAME = "gcp.kms.key";
 
     private static final Charset PROPERTY_CHARSET = StandardCharsets.UTF_8;
 
