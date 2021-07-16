@@ -107,6 +107,8 @@ public class StandardSensitivePropertyProviderFactory implements SensitiveProper
                 return providerMap.computeIfAbsent(protectionScheme, s -> new AESSensitivePropertyProvider(keyHex));
             case AWS_KMS:
                 return providerMap.computeIfAbsent(protectionScheme, s -> new AWSSensitivePropertyProvider(getBootstrapProperties()));
+            case GCP_KMS:
+                return providerMap.computeIfAbsent(protectionScheme, s -> new GCPSensitivePropertyProvider(getBootstrapProperties()));
             case HASHICORP_VAULT_TRANSIT:
                 return providerMap.computeIfAbsent(protectionScheme, s -> new HashiCorpVaultTransitSensitivePropertyProvider(getBootstrapProperties()));
             default:
