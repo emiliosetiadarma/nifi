@@ -34,6 +34,7 @@ public class BootstrapProperties extends StandardReadableProperties {
     public enum BootstrapPropertyKey {
         SENSITIVE_KEY("bootstrap.sensitive.key"),
         HASHICORP_VAULT_SENSITIVE_PROPERTY_PROVIDER_CONF("bootstrap.protection.hashicorp.vault.conf"),
+        AZURE_KEYVAULT_SENSITIVE_PROPERTY_PROVIDER_CONF("bootstrap.protection.azure.keyvault.conf"),
         AWS_KMS_SENSITIVE_PROPERTY_PROVIDER_CONF("bootstrap.protection.aws.kms.conf"),
         CONTEXT_MAPPING_PREFIX("bootstrap.protection.context.mapping.");
 
