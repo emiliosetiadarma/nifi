@@ -52,7 +52,7 @@ import java.util.Properties;
  * https://docs.microsoft.com/en-us/java/api/com.azure.security.keyvault.keys.cryptography.models.encryptionalgorithm
  */
 
-public class AzureSensitivePropertyProviderIT {
+public class AzureKeyVaultKeySensitivePropertyProviderIT {
     private static final String SAMPLE_PLAINTEXT = "AzureSensitivePropertyProviderIT SAMPLE-PLAINTEXT";
     private static final String KEYVAULT_KEY_PROPS_NAME = "azure.keyvault.key.id";
     private static final String ENCRYPTION_ALGORITHM_PROPS_NAME = "azure.keyvault.encryption.algorithm";
@@ -61,13 +61,13 @@ public class AzureSensitivePropertyProviderIT {
 
     private static final String EMPTY_PROPERTY = "";
 
-    private static AzureSensitivePropertyProvider spp;
+    private static AzureKeyVaultKeySensitivePropertyProvider spp;
 
     private static BootstrapProperties props;
 
     private static Path mockBootstrapConf, mockAzureBootstrapConf;
 
-    private static final Logger logger = LoggerFactory.getLogger(AzureSensitivePropertyProviderIT.class);
+    private static final Logger logger = LoggerFactory.getLogger(AzureKeyVaultKeySensitivePropertyProviderIT.class);
 
     private static void initializeBootstrapProperties() throws IOException {
         mockBootstrapConf = Files.createTempFile("bootstrap", ".conf").toAbsolutePath();
@@ -94,7 +94,7 @@ public class AzureSensitivePropertyProviderIT {
     public static void initOnce() throws IOException {
         initializeBootstrapProperties();
         Assert.assertNotNull(props);
-        spp = new AzureSensitivePropertyProvider(props);
+        spp = new AzureKeyVaultKeySensitivePropertyProvider(props);
         Assert.assertNotNull(spp);
     }
 

@@ -40,8 +40,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 
-public class AzureSensitivePropertyProvider extends AbstractSensitivePropertyProvider {
-    private static final Logger logger = LoggerFactory.getLogger(AzureSensitivePropertyProvider.class);
+public class AzureKeyVaultKeySensitivePropertyProvider extends AbstractSensitivePropertyProvider {
+    private static final Logger logger = LoggerFactory.getLogger(AzureKeyVaultKeySensitivePropertyProvider.class);
 
     private static final String AZURE_PREFIX = "azure";
     private static final String KEYVAULT_KEY_PROPS_NAME = "azure.keyvault.key.id";
@@ -54,7 +54,7 @@ public class AzureSensitivePropertyProvider extends AbstractSensitivePropertyPro
     private String keyId;
     private String algorithm;
 
-    AzureSensitivePropertyProvider(final BootstrapProperties bootstrapProperties) throws SensitivePropertyProtectionException {
+    AzureKeyVaultKeySensitivePropertyProvider(final BootstrapProperties bootstrapProperties) throws SensitivePropertyProtectionException {
         super(bootstrapProperties);
         Objects.requireNonNull(bootstrapProperties, "The file bootstrap.conf provided to Azure SPP is null");
         azureBootstrapProperties = getAzureBootstrapProperties(bootstrapProperties);
@@ -190,7 +190,7 @@ public class AzureSensitivePropertyProvider extends AbstractSensitivePropertyPro
      */
     @Override
     protected PropertyProtectionScheme getProtectionScheme() {
-        return PropertyProtectionScheme.AZURE_KEYVAULT;
+        return PropertyProtectionScheme.AZURE_KEYVAULT_KEY;
     }
 
     /**
@@ -200,7 +200,7 @@ public class AzureSensitivePropertyProvider extends AbstractSensitivePropertyPro
      */
     @Override
     public String getName() {
-        return PropertyProtectionScheme.AZURE_KEYVAULT.getName();
+        return PropertyProtectionScheme.AZURE_KEYVAULT_KEY.getName();
     }
 
     /**
@@ -210,7 +210,7 @@ public class AzureSensitivePropertyProvider extends AbstractSensitivePropertyPro
      */
     @Override
     public String getIdentifierKey() {
-        return PropertyProtectionScheme.AZURE_KEYVAULT.getIdentifier();
+        return PropertyProtectionScheme.AZURE_KEYVAULT_KEY.getIdentifier();
     }
 
 

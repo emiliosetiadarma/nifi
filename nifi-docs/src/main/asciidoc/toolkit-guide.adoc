@@ -435,7 +435,7 @@ The following are available options when targeting NiFi:
  * `-f`,`--flowXml <file>`                       The _flow.xml.gz_ file currently protected with old password (will be overwritten unless `-g` is specified)
  * `-g`,`--outputFlowXml <file>`                 The destination _flow.xml.gz_ file containing protected config values (will not modify input _flow.xml.gz_)
  * `-b`,`--bootstrapConf <file>`                 The bootstrap.conf file to persist root key and to optionally provide any configuration for the protection scheme.
- * `-S`,`--protectionScheme <protectionScheme>`  Selects the protection scheme for encrypted properties.  Valid values are: [AES_GCM, HASHICORP_VAULT_TRANSIT, AWS_KMS] (default is AES_GCM)
+ * `-S`,`--protectionScheme <protectionScheme>`  Selects the protection scheme for encrypted properties.  Valid values are: [AES_GCM, HASHICORP_VAULT_TRANSIT, AWS_KMS, AZURE_KEYVAULT_KEY] (default is AES_GCM)
  * `-k`,`--key <keyhex>`                         The raw hexadecimal key to use to encrypt the sensitive properties
  * `-e`,`--oldKey <keyhex>`                      The old raw hexadecimal key to use during key migration
  * `-H`,`--oldProtectionScheme <protectionScheme>` The old protection scheme to use during encryption migration (see --protectionScheme for possible values).  Default is AES_GCM
@@ -456,7 +456,7 @@ The following are available options when targeting NiFi Registry using the `--ni
  * `-v`,`--verbose`                              Sets verbose mode (default false)
  * `-p`,`--password <password>`                  Protect the files using a password-derived key. If an argument is not provided to this flag, interactive mode will be triggered to prompt the user to enter the password.
  * `-k`,`--key <keyhex>`                         Protect the files using a raw hexadecimal key. If an argument is not provided to this flag, interactive mode will be triggered to prompt the user to enter the key.
- * `-S`,`--protectionScheme <protectionScheme>`  Selects the protection scheme for encrypted properties.  Valid values are: [AES_GCM, HASHICORP_VAULT_TRANSIT, AWS_KMS]  (default is AES_GCM)
+ * `-S`,`--protectionScheme <protectionScheme>`  Selects the protection scheme for encrypted properties.  Valid values are: [AES_GCM, HASHICORP_VAULT_TRANSIT, AWS_KMS, AZURE_KEYVAULT_KEY]  (default is AES_GCM)
  * `--oldPassword <password>`                    If the input files are already protected using a password-derived key, this specifies the old password so that the files can be unprotected before re-protecting.
  * `--oldKey <keyhex>`                           If the input files are already protected using a key, this specifies the raw hexadecimal key so that the files can be unprotected before re-protecting.
  * `-H`,`--oldProtectionScheme <protectionScheme>`The old protection scheme to use during encryption migration (see --protectionScheme for possible values).  Default is AES_GCM.
@@ -522,6 +522,17 @@ This protection scheme uses AWS Key Management Service (https://aws.amazon.com/k
 |`aws.region`|The AWS region used to configure the AWS KMS Client.|_none_
 |`aws.access.key.id`|The access key ID credential used to access AWS KMS.|_none_
 |`aws.secret.access.key`|The secret access key used to access AWS KMS.|_none_
+|===
+
+==== AZURE_KEYVAULT_KEY
+This protection scheme uses keys managed by Azure Key Vault (https://docs.microsoft.com/en-us/azure/key-vault/keys/about-keys) for encryption and decryption. Azure Key Vault configuration properties can be stored in the `bootstrap-azure.conf` file, as referenced in the `bootstrap.conf` of NiFi or NiFi Registry. The provider will utilize the Azure default credentials provider chain referenced in the following link: https://docs.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet.
+
+===== Required properties
+[options="header,footer"]
+|===
+|Property Name|Description|Default
+|`azure.keyvault.key.id`|The identifier of the key that the Azure Key Vault client uses for encryption and decryption.|_none_
+|`azure.keyvault.encryption.algorithm`|The encryption algorithm that the Azure Key Vault client uses for encryption and decryption.|_none_
 |===
 
 === Examples
