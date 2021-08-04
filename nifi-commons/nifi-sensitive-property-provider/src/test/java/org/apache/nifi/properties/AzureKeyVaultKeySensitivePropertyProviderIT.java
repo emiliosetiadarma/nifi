@@ -53,7 +53,7 @@ import java.util.Properties;
  */
 
 public class AzureKeyVaultKeySensitivePropertyProviderIT {
-    private static final String SAMPLE_PLAINTEXT = "AzureSensitivePropertyProviderIT SAMPLE-PLAINTEXT";
+    private static final String SAMPLE_PLAINTEXT = "AzureKeyVaultKeySensitivePropertyProviderIT SAMPLE-PLAINTEXT";
     private static final String KEYVAULT_KEY_PROPS_NAME = "azure.keyvault.key.id";
     private static final String ENCRYPTION_ALGORITHM_PROPS_NAME = "azure.keyvault.encryption.algorithm";
 
@@ -108,9 +108,9 @@ public class AzureKeyVaultKeySensitivePropertyProviderIT {
 
     @Test
     public void testEncryptDecrypt() {
-        logger.info("Running testEncryptDecrypt of Azure SPP integration test");
+        logger.info("Running testEncryptDecrypt of Azure Key Vault Key SPP integration test");
         this.runEncryptDecryptTest();
-        logger.info("testEncryptDecrypt of Azure SPP integration test completed");
+        logger.info("testEncryptDecrypt of Azure Key Vault Key SPP integration test completed");
     }
 
     private static void runEncryptDecryptTest() {
