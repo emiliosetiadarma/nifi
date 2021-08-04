@@ -125,7 +125,7 @@ public class AzureKeyVaultKeySensitivePropertyProvider extends AbstractSensitive
     /**
      * Checks if we have the required properties {@link #keyId} and {@link #algorithm} from bootstrap-azure.conf
      * for Azure KeyVault and loads it into the appropriate variables, will load null if values don't exist.
-     * Note: This function does not verify if the properties are correctly formatted/valid.
+     * Note: This function does not verify if the properties are valid.
      * @param props the properties representing bootstrap-azure.conf
      */
     private void loadRequiredAzureProperties(final BootstrapProperties props) {
