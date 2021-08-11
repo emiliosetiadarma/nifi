@@ -1836,6 +1836,17 @@ This provider uses AWS Key Management Service (https://aws.amazon.com/kms/) for 
 |`aws.secret.access.key`|The secret access key used to access AWS KMS.|_none_
 |===
 
+=== Azure Key Vault Key provider
+This protection scheme uses keys managed by Azure Key Vault (https://docs.microsoft.com/en-us/azure/key-vault/keys/about-keys) for encryption and decryption. Azure Key Vault configuration properties can be stored in the `bootstrap-azure.conf` file, as referenced in the `bootstrap.conf` of NiFi or NiFi Registry. The provider will utilize the Azure default credentials provider chain referenced in the following link: https://docs.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet.
+
+==== Required properties
+[options="header,footer"]
+|===
+|Property Name|Description|Default
+|`azure.keyvault.key.id`|The identifier of the key that the Azure Key Vault client uses for encryption and decryption.|_none_
+|`azure.keyvault.encryption.algorithm`|The encryption algorithm that the Azure Key Vault client uses for encryption and decryption.|_none_
+|===
+
 === Property Context Mapping
 Some encryption providers store protected values in an external service instead of persisting the encrypted values directly in the configuration file.  To support this use case, a property context is defined for each protected property in NiFi's configuration files, in the format: `{context-name}/{property-name}`
 
