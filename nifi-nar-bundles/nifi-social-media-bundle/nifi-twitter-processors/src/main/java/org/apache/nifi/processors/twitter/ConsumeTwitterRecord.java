@@ -18,6 +18,7 @@ import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.flowfile.attributes.CoreAttributes;
+import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
@@ -26,6 +27,15 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
+import org.apache.nifi.schema.access.SchemaNotFoundException;
+import org.apache.nifi.serialization.RecordSetWriter;
+import org.apache.nifi.serialization.RecordSetWriterFactory;
+import org.apache.nifi.serialization.SimpleRecordSchema;
+import org.apache.nifi.serialization.record.DataType;
+import org.apache.nifi.serialization.record.Record;
+import org.apache.nifi.serialization.record.RecordField;
+import org.apache.nifi.serialization.record.RecordFieldType;
+import org.apache.nifi.serialization.record.RecordSchema;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -62,14 +72,23 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-//    static final PropertyDescriptor RECORD_WRITER = new PropertyDescriptor.Builder()
-//            .name("record-writer")
-//            .displayName("Record Writer")
-//            .description("The Record Writer to use in order to serialize the data before sending to Kafka")
-//            .identifiesControllerService(RecordSetWriterFactory.class)
+//    static final PropertyDescriptor RECORD_READER = new PropertyDescriptor.Builder()
+//            .name("record-reader")
+//            .displayName("Record Reader")
+//            .description("The Record Reader to use for reading received Tweets")
+//            .identifiesControllerService(RecordReaderFactory.class)
 //            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
 //            .required(true)
 //            .build();
+
+    static final PropertyDescriptor RECORD_WRITER = new PropertyDescriptor.Builder()
+        .name("record-writer")
+        .displayName("Record Writer")
+        .description("The Record Writer to use in order to serialize the Tweets to the output FlowFile")
+        .identifiesControllerService(RecordSetWriterFactory.class)
+        .expressionLanguageSupported(ExpressionLanguageScope.NONE)
+        .required(true)
+        .build();
 
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
@@ -84,11 +103,162 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 
     private volatile BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(5000);
 
+    private RecordSetWriter recordWriter;
+
+    // TODO: Implement TweetWriter to use the RecordWriter
+    interface TweetWriter {
+        void beginListing() throws SchemaNotFoundException, IOException;
+        void addToListing();
+        void finishListing();
+        void finishListingExceptionally();
+        boolean isCheckpoint();
+    }
+
+    /* Sample Tweet
+    {
+  "id" : "1506520747493113857",
+  "created_at" : {
+    "dateTime" : {
+      "date" : {
+        "year" : 2022,
+        "month" : 3,
+        "day" : 23
+      },
+      "time" : {
+        "hour" : 6,
+        "minute" : 38,
+        "second" : 30,
+        "nano" : 0
+      }
+    },
+    "offset" : {
+      "totalSeconds" : 0
+    }
+  },
+  "text" : "They say, I, who used to be so small, became a hero\n\n#DefendTheThroneLegions\n#LikhangSiningNiPedro\n#SPCMetanoia\n#SPCIntramurals2022",
+  "author_id" : "1384689391851900928"
+}
+     */
+    private static class RecordTweetWriter implements TweetWriter {
+        private static final RecordSchema RECORD_SCHEMA;
+
+        private static final String ID = "id";
+        private static final String TEXT ="text";
+        private static final String AUTHOR_ID = "author_id";
+        private static final String CREATED_AT = "created_at";
+//        private static final String DATE_TIME = "dateTime";
+//        private static final String DATE = "date";
+//        private static final String YEAR = "year";
+//        private static final String MONTH = "month";
+//        private static final String DAY = "day";
+//        private static final String TIME = "time";
+//        private static final String HOUR = "hour";
+//        private static final String MINUTE = "minute";
+//        private static final String SECOND = "second";
+//        private static final String NANO = "nano";
+//        private static final String OFFSET = "offset";
+//        private static final String TOTAL_SECONDS = "totalSeconds";
+
+        private static final DataType DATE_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
+        private static final DataType TIME_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
+        private static final DataType DATETIME_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.CHOICE.getChoiceDataType(DATE_TYPE, TIME_TYPE));
+        private static final DataType OFFSET_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
+        private static final DataType CREATED_AT_TYPE = RecordFieldType.CHOICE.getChoiceDataType(DATETIME_TYPE, OFFSET_TYPE);
+        static {
+            final List<RecordField> fields = new ArrayList<>();
+            fields.add(new RecordField(ID, RecordFieldType.STRING.getDataType(), false));
+            fields.add(new RecordField(TEXT, RecordFieldType.STRING.getDataType(), false));
+            fields.add(new RecordField(AUTHOR_ID, RecordFieldType.STRING.getDataType(), false));
+            fields.add(new RecordField(CREATED_AT, CREATED_AT_TYPE, false));
+            RECORD_SCHEMA = new SimpleRecordSchema(fields);
+        }
+
+        private final ProcessSession session;
+        private final RecordSetWriterFactory writerFactory;
+        private final ComponentLog logger;
+        private RecordSetWriter recordWriter;
+        private FlowFile flowFile;
+
+        public RecordTweetWriter(final ProcessSession session, final RecordSetWriterFactory writerFactory, final ComponentLog logger) {
+            this.session = session;
+            this.writerFactory = writerFactory;
+            this.logger = logger;
+        }
+
+        private Record createRecordForListing() {
+            final Map<String, Object> values = new HashMap<>();
+            
+            return null;
+        }
+
+        @Override
+        public void beginListing() throws SchemaNotFoundException, IOException {
+            flowFile = session.create();
+
+            final OutputStream out = session.write(flowFile);
+            recordWriter = writerFactory.createWriter(logger, RECORD_SCHEMA, out, flowFile);
+            recordWriter.beginRecordSet();
+        }
+
+        @Override
+        public void addToListing() {
+
+        }
+
+        @Override
+        public void finishListing() {
+
+        }
+
+        @Override
+        public void finishListingExceptionally() {
+
+        }
+
+        @Override
+        public boolean isCheckpoint() {
+            return false;
+        }
+    }
+
+    private static class AttributeTweetWriter implements TweetWriter {
+        @Override
+        public void beginListing() {
+
+        }
+
+        @Override
+        public void addToListing() {
+
+        }
+
+        @Override
+        public void finishListing() {
+
+        }
+
+        @Override
+        public void finishListingExceptionally() {
+
+        }
+
+        @Override
+        public boolean isCheckpoint() {
+            return false;
+        }
+    }
+
+
+
+
+
     @Override
     protected void init(ProcessorInitializationContext context) {
         final List<PropertyDescriptor> descriptors = new ArrayList<>();
         descriptors.add(ENDPOINT);
         descriptors.add(BEARER_TOKEN);
+//        descriptors.add(RECORD_READER);
+        descriptors.add(RECORD_WRITER);
 
         this.descriptors = Collections.unmodifiableList(descriptors);
 
