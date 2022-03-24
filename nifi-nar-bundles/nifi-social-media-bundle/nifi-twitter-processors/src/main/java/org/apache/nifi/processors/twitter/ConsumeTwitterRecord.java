@@ -1,6 +1,7 @@
 package org.apache.nifi.processors.twitter;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.twitter.clientlib.ApiException;
 import com.twitter.clientlib.TweetsStreamListenersExecutor;
 import com.twitter.clientlib.TwitterCredentials;
@@ -31,7 +32,9 @@ import org.apache.nifi.schema.access.SchemaNotFoundException;
 import org.apache.nifi.serialization.RecordSetWriter;
 import org.apache.nifi.serialization.RecordSetWriterFactory;
 import org.apache.nifi.serialization.SimpleRecordSchema;
+import org.apache.nifi.serialization.WriteResult;
 import org.apache.nifi.serialization.record.DataType;
+import org.apache.nifi.serialization.record.MapRecord;
 import org.apache.nifi.serialization.record.Record;
 import org.apache.nifi.serialization.record.RecordField;
 import org.apache.nifi.serialization.record.RecordFieldType;
@@ -108,9 +111,9 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
     // TODO: Implement TweetWriter to use the RecordWriter
     interface TweetWriter {
         void beginListing() throws SchemaNotFoundException, IOException;
-        void addToListing();
-        void finishListing();
-        void finishListingExceptionally();
+        void addToListing(final String tweet) throws IOException;
+        void finishListing() throws IOException;
+        void finishListingExceptionally(final Exception cause);
         boolean isCheckpoint();
     }
 
@@ -146,18 +149,18 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         private static final String TEXT ="text";
         private static final String AUTHOR_ID = "author_id";
         private static final String CREATED_AT = "created_at";
-//        private static final String DATE_TIME = "dateTime";
-//        private static final String DATE = "date";
-//        private static final String YEAR = "year";
-//        private static final String MONTH = "month";
-//        private static final String DAY = "day";
-//        private static final String TIME = "time";
-//        private static final String HOUR = "hour";
-//        private static final String MINUTE = "minute";
-//        private static final String SECOND = "second";
-//        private static final String NANO = "nano";
-//        private static final String OFFSET = "offset";
-//        private static final String TOTAL_SECONDS = "totalSeconds";
+        private static final String DATE_TIME = "dateTime";
+        private static final String DATE = "date";
+        private static final String YEAR = "year";
+        private static final String MONTH = "month";
+        private static final String DAY = "day";
+        private static final String TIME = "time";
+        private static final String HOUR = "hour";
+        private static final String MINUTE = "minute";
+        private static final String SECOND = "second";
+        private static final String NANO = "nano";
+        private static final String OFFSET = "offset";
+        private static final String TOTAL_SECONDS = "totalSeconds";
 
         private static final DataType DATE_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
         private static final DataType TIME_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
@@ -185,10 +188,37 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             this.logger = logger;
         }
 
-        private Record createRecordForListing() {
+        private Record createRecordForListing(String tweet) {
+            JsonObject tweetJson = new Gson().fromJson(tweet, JsonObject.class);
+            assert tweetJson.isJsonObject();
+
+            final Map<String, Integer> date = new HashMap<>();
+            date.put(YEAR, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(DATE).get(YEAR).getAsInt());
+            date.put(MONTH, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(DATE).get(MONTH).getAsInt());
+            date.put(DAY, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(DATE).get(DAY).getAsInt());
+            final Map<String, Integer> time = new HashMap<>();
+            time.put(HOUR, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(HOUR).getAsInt());
+            time.put(MINUTE, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(MINUTE).getAsInt());
+            time.put(SECOND, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(SECOND).getAsInt());
+            time.put(NANO, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(NANO).getAsInt());
+            final Map<String, Object> dateTime = new HashMap<>();
+            dateTime.put(DATE, date);
+            dateTime.put(TIME, time);
+
+            final Map<String, Integer> offset = new HashMap<>();
+            offset.put(TOTAL_SECONDS, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(OFFSET).get(TOTAL_SECONDS).getAsInt());
+
+            final Map<String, Map> createdAt = new HashMap<>();
+            createdAt.put(DATE_TIME, dateTime);
+            createdAt.put(OFFSET, offset);
+
             final Map<String, Object> values = new HashMap<>();
-            
-            return null;
+            values.put(ID, tweetJson.get(ID).getAsString());
+            values.put(TEXT, tweetJson.get(TEXT).getAsString());
+            values.put(AUTHOR_ID, tweetJson.get(AUTHOR_ID).getAsString());
+            values.put(CREATED_AT, createdAt);
+
+            return new MapRecord(RECORD_SCHEMA, values);
         }
 
         @Override
@@ -201,45 +231,36 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         }
 
         @Override
-        public void addToListing() {
-
+        public void addToListing(final String tweet) throws IOException {
+            Record record = createRecordForListing(tweet);
+            recordWriter.write(record);
         }
 
         @Override
-        public void finishListing() {
+        public void finishListing() throws IOException {
+            final WriteResult writeResult = recordWriter.finishRecordSet();
+            recordWriter.close();
 
+            if (writeResult.getRecordCount() == 0) {
+                session.remove(flowFile);
+            } else {
+                final Map<String, String> attributes = new HashMap<>(writeResult.getAttributes());
+                attributes.put("record.count", String.valueOf(writeResult.getRecordCount()));
+                flowFile = session.putAllAttributes(flowFile, attributes);
+
+                session.transfer(flowFile, REL_SUCCESS);
+            }
         }
 
         @Override
-        public void finishListingExceptionally() {
+        public void finishListingExceptionally(final Exception cause) {
+            try {
+                recordWriter.close();
+            } catch (IOException e) {
+                logger.error("Failed to write tweet as Records due to {}", new Object[] {e}, e);
+            }
 
-        }
-
-        @Override
-        public boolean isCheckpoint() {
-            return false;
-        }
-    }
-
-    private static class AttributeTweetWriter implements TweetWriter {
-        @Override
-        public void beginListing() {
-
-        }
-
-        @Override
-        public void addToListing() {
-
-        }
-
-        @Override
-        public void finishListing() {
-
-        }
-
-        @Override
-        public void finishListingExceptionally() {
-
+            session.remove(flowFile);
         }
 
         @Override
@@ -247,17 +268,12 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             return false;
         }
     }
-
-
-
-
 
     @Override
     protected void init(ProcessorInitializationContext context) {
         final List<PropertyDescriptor> descriptors = new ArrayList<>();
         descriptors.add(ENDPOINT);
         descriptors.add(BEARER_TOKEN);
-//        descriptors.add(RECORD_READER);
         descriptors.add(RECORD_WRITER);
 
         this.descriptors = Collections.unmodifiableList(descriptors);
