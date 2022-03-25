@@ -18,7 +18,6 @@ import org.apache.nifi.components.AllowableValue;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.flowfile.attributes.CoreAttributes;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
@@ -26,7 +25,6 @@ import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.ProcessorInitializationContext;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
-import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.schema.access.SchemaNotFoundException;
 import org.apache.nifi.serialization.RecordSetWriter;
@@ -117,33 +115,8 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         boolean isCheckpoint();
     }
 
-    /* Sample Tweet
-    {
-  "id" : "1506520747493113857",
-  "created_at" : {
-    "dateTime" : {
-      "date" : {
-        "year" : 2022,
-        "month" : 3,
-        "day" : 23
-      },
-      "time" : {
-        "hour" : 6,
-        "minute" : 38,
-        "second" : 30,
-        "nano" : 0
-      }
-    },
-    "offset" : {
-      "totalSeconds" : 0
-    }
-  },
-  "text" : "They say, I, who used to be so small, became a hero\n\n#DefendTheThroneLegions\n#LikhangSiningNiPedro\n#SPCMetanoia\n#SPCIntramurals2022",
-  "author_id" : "1384689391851900928"
-}
-     */
-    private static class RecordTweetWriter implements TweetWriter {
-        private static final RecordSchema RECORD_SCHEMA;
+    static class RecordTweetWriter implements TweetWriter {
+        private static RecordSchema RECORD_SCHEMA;
 
         private static final String ID = "id";
         private static final String TEXT ="text";
@@ -326,7 +299,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             else {
                 throw new AssertionError("Endpoint was invalid value: " + endpointName);
             }
-            Responder responder = new Responder();
+            org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder responder = new org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder();
             TweetsStreamListenersExecutor tsle = new TweetsStreamListenersExecutor(result);
             tsle.addListener(responder);
             tsle.executeListeners();
@@ -338,19 +311,19 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
-        String tweet = messageQueue.poll();
-        if (tweet == null) {
-            context.yield();
-            return;
-        }
-
-        final TweetWriter writer;
+        RecordTweetWriter writer;
         final RecordSetWriterFactory writerFactory = context.getProperty(RECORD_WRITER).asControllerService(RecordSetWriterFactory.class);
         if (writerFactory == null) {
             context.yield();
             return;
         } else {
             writer = new RecordTweetWriter(session, writerFactory, getLogger());
+        }
+
+        String tweet = messageQueue.poll();
+        if (tweet == null) {
+            context.yield();
+            return;
         }
 
         try {
@@ -372,8 +345,6 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             context.yield();
             return;
         }
-
-
 //        // prev code
 //        FlowFile flowFile = session.create();
 //        flowFile = session.write(flowFile, new OutputStreamCallback() {
