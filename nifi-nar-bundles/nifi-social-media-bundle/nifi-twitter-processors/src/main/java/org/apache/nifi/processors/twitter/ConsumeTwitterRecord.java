@@ -1,7 +1,9 @@
 package org.apache.nifi.processors.twitter;
 
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.twitter.clientlib.ApiException;
 import com.twitter.clientlib.TweetsStreamListenersExecutor;
 import com.twitter.clientlib.TwitterCredentials;
@@ -18,6 +20,7 @@ import org.apache.nifi.components.AllowableValue;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
+import org.apache.nifi.flowfile.attributes.CoreAttributes;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
@@ -41,7 +44,7 @@ import org.apache.nifi.serialization.record.RecordSchema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -73,15 +76,6 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-//    static final PropertyDescriptor RECORD_READER = new PropertyDescriptor.Builder()
-//            .name("record-reader")
-//            .displayName("Record Reader")
-//            .description("The Record Reader to use for reading received Tweets")
-//            .identifiesControllerService(RecordReaderFactory.class)
-//            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
-//            .required(true)
-//            .build();
-
     static final PropertyDescriptor RECORD_WRITER = new PropertyDescriptor.Builder()
             .name("record-writer")
             .displayName("Record Writer")
@@ -99,18 +93,15 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
     private List<PropertyDescriptor> descriptors;
     private Set<Relationship> relationships;
 
-    private TwitterApi api;
+    private static TwitterApi api;
     private TwitterCredentials creds;
 
     private volatile BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(5000);
 
-    private RecordSetWriter recordWriter;
-
-    // TODO: Implement TweetWriter to use the RecordWriter
     interface TweetWriter {
         void beginListing() throws SchemaNotFoundException, IOException;
         void addToListing(final String tweet) throws IOException;
-        void finishListing() throws IOException;
+        void finishListing(final String endpointName) throws IOException;
         void finishListingExceptionally(final Exception cause);
         boolean isCheckpoint();
     }
@@ -122,30 +113,12 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         private static final String TEXT ="text";
         private static final String AUTHOR_ID = "author_id";
         private static final String CREATED_AT = "created_at";
-        private static final String DATE_TIME = "dateTime";
-        private static final String DATE = "date";
-        private static final String YEAR = "year";
-        private static final String MONTH = "month";
-        private static final String DAY = "day";
-        private static final String TIME = "time";
-        private static final String HOUR = "hour";
-        private static final String MINUTE = "minute";
-        private static final String SECOND = "second";
-        private static final String NANO = "nano";
-        private static final String OFFSET = "offset";
-        private static final String TOTAL_SECONDS = "totalSeconds";
-
-        private static final DataType DATE_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
-        private static final DataType TIME_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
-        private static final DataType DATETIME_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.CHOICE.getChoiceDataType(DATE_TYPE, TIME_TYPE));
-        private static final DataType OFFSET_TYPE = RecordFieldType.MAP.getMapDataType(RecordFieldType.INT.getDataType());
-        private static final DataType CREATED_AT_TYPE = RecordFieldType.CHOICE.getChoiceDataType(DATETIME_TYPE, OFFSET_TYPE);
         static {
             final List<RecordField> fields = new ArrayList<>();
             fields.add(new RecordField(ID, RecordFieldType.STRING.getDataType(), false));
             fields.add(new RecordField(TEXT, RecordFieldType.STRING.getDataType(), false));
             fields.add(new RecordField(AUTHOR_ID, RecordFieldType.STRING.getDataType(), false));
-            fields.add(new RecordField(CREATED_AT, CREATED_AT_TYPE, false));
+            fields.add(new RecordField(CREATED_AT, RecordFieldType.STRING.getDataType(), false));
             RECORD_SCHEMA = new SimpleRecordSchema(fields);
         }
 
@@ -165,31 +138,11 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             JsonObject tweetJson = new Gson().fromJson(tweet, JsonObject.class);
             assert tweetJson.isJsonObject();
 
-            final Map<String, Integer> date = new HashMap<>();
-            date.put(YEAR, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(DATE).get(YEAR).getAsInt());
-            date.put(MONTH, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(DATE).get(MONTH).getAsInt());
-            date.put(DAY, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(DATE).get(DAY).getAsInt());
-            final Map<String, Integer> time = new HashMap<>();
-            time.put(HOUR, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(HOUR).getAsInt());
-            time.put(MINUTE, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(MINUTE).getAsInt());
-            time.put(SECOND, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(SECOND).getAsInt());
-            time.put(NANO, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(TIME).get(NANO).getAsInt());
-            final Map<String, Object> dateTime = new HashMap<>();
-            dateTime.put(DATE, date);
-            dateTime.put(TIME, time);
-
-            final Map<String, Integer> offset = new HashMap<>();
-            offset.put(TOTAL_SECONDS, tweetJson.getAsJsonObject(CREATED_AT).getAsJsonObject(DATE_TIME).getAsJsonObject(OFFSET).get(TOTAL_SECONDS).getAsInt());
-
-            final Map<String, Map> createdAt = new HashMap<>();
-            createdAt.put(DATE_TIME, dateTime);
-            createdAt.put(OFFSET, offset);
-
             final Map<String, Object> values = new HashMap<>();
             values.put(ID, tweetJson.get(ID).getAsString());
             values.put(TEXT, tweetJson.get(TEXT).getAsString());
             values.put(AUTHOR_ID, tweetJson.get(AUTHOR_ID).getAsString());
-            values.put(CREATED_AT, createdAt);
+//            values.put(CREATED_AT);
 
             return new MapRecord(RECORD_SCHEMA, values);
         }
@@ -210,7 +163,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         }
 
         @Override
-        public void finishListing() throws IOException {
+        public void finishListing(final String transitUri) throws IOException {
             final WriteResult writeResult = recordWriter.finishRecordSet();
             recordWriter.close();
 
@@ -219,9 +172,12 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             } else {
                 final Map<String, String> attributes = new HashMap<>(writeResult.getAttributes());
                 attributes.put("record.count", String.valueOf(writeResult.getRecordCount()));
+                attributes.put(CoreAttributes.MIME_TYPE.key(), "application/json");
+                attributes.put(CoreAttributes.FILENAME.key(), CoreAttributes.FILENAME.key() + ".json");
                 flowFile = session.putAllAttributes(flowFile, attributes);
 
                 session.transfer(flowFile, REL_SUCCESS);
+                session.getProvenanceReporter().receive(flowFile, transitUri);
             }
         }
 
@@ -337,7 +293,21 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             } while (!messageQueue.isEmpty());
 
             getLogger().info("Successfully listed {} new tweets; routing to success", tweetCount);
-            writer.finishListing();
+
+            final String endpointName = context.getProperty(ENDPOINT).getValue();
+            String transitUri = api.getApiClient().getBasePath();
+            if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
+                transitUri += SAMPLE_PATH;
+            }
+            else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
+                transitUri += SEARCH_PATH;
+            }
+            else {
+                throw new AssertionError("Endpoint was invalid value: " + endpointName);
+            }
+
+            writer.finishListing(transitUri);
+            session.commitAsync();
         } catch (final Exception e) {
             getLogger().error("Failed to record tweets due to {}", new Object[]{e}, e);
             writer.finishListingExceptionally(e);
@@ -345,41 +315,24 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             context.yield();
             return;
         }
-//        // prev code
-//        FlowFile flowFile = session.create();
-//        flowFile = session.write(flowFile, new OutputStreamCallback() {
-//            @Override
-//            public void process(OutputStream out) throws IOException {
-//                out.write(tweet.getBytes(StandardCharsets.UTF_8));
-//            }
-//        });
-//
-//        final Map<String, String> attributes = new HashMap<>();
-//        attributes.put(CoreAttributes.MIME_TYPE.key(), "application/json");
-//        attributes.put(CoreAttributes.FILENAME.key(), flowFile.getAttribute(CoreAttributes.FILENAME.key()) + ".json");
-//        flowFile = session.putAllAttributes(flowFile, attributes);
-//
-//        session.transfer(flowFile, REL_SUCCESS);
-//        final String endpointName = context.getProperty(ENDPOINT).getValue();
-//        String transitUri = api.getApiClient().getBasePath();
-//        if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
-//            transitUri += SAMPLE_PATH;
-//        }
-//        else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
-//            transitUri += SEARCH_PATH;
-//        }
-//        else {
-//            throw new AssertionError("Endpoint was invalid value: " + endpointName);
-//        }
-//        session.getProvenanceReporter().receive(flowFile, transitUri);
     }
 
     private class Responder implements com.twitter.clientlib.TweetsStreamListener {
         @Override
         public void actionOnTweetsStream(StreamingTweet streamingTweet) {
             Gson gson = new Gson();
-            String tweetJson = gson.toJson(streamingTweet.getData());
-            messageQueue.add(tweetJson);
+
+            final String tweet = gson.toJson(streamingTweet.getData());
+
+            final DateTimeFormatter formatter = DateTimeFormatter.ISO_ZONED_DATE_TIME;
+            final String formattedCreatedAtString = formatter.format(streamingTweet.getData().getCreatedAt());
+            JsonObject jsonObj = JsonParser.parseString(tweet).getAsJsonObject();
+            jsonObj.remove("created_at");
+            jsonObj.addProperty("created_at", formattedCreatedAtString);
+
+            final String formattedTweetJson = gson.toJson(jsonObj);
+
+            messageQueue.add(formattedTweetJson);
         }
     }
 }
