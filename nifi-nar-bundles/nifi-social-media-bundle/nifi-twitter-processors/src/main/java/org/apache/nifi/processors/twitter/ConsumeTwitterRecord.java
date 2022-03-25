@@ -85,13 +85,13 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 //            .build();
 
     static final PropertyDescriptor RECORD_WRITER = new PropertyDescriptor.Builder()
-        .name("record-writer")
-        .displayName("Record Writer")
-        .description("The Record Writer to use in order to serialize the Tweets to the output FlowFile")
-        .identifiesControllerService(RecordSetWriterFactory.class)
-        .expressionLanguageSupported(ExpressionLanguageScope.NONE)
-        .required(true)
-        .build();
+            .name("record-writer")
+            .displayName("Record Writer")
+            .description("The Record Writer to use in order to serialize the Tweets to the output FlowFile")
+            .identifiesControllerService(RecordSetWriterFactory.class)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
+            .required(true)
+            .build();
 
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
@@ -338,38 +338,69 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
-        final String tweet = messageQueue.poll();
+        String tweet = messageQueue.poll();
         if (tweet == null) {
             context.yield();
             return;
         }
 
-        FlowFile flowFile = session.create();
-        flowFile = session.write(flowFile, new OutputStreamCallback() {
-            @Override
-            public void process(OutputStream out) throws IOException {
-                out.write(tweet.getBytes(StandardCharsets.UTF_8));
-            }
-        });
+        final TweetWriter writer;
+        final RecordSetWriterFactory writerFactory = context.getProperty(RECORD_WRITER).asControllerService(RecordSetWriterFactory.class);
+        if (writerFactory == null) {
+            context.yield();
+            return;
+        } else {
+            writer = new RecordTweetWriter(session, writerFactory, getLogger());
+        }
 
-        final Map<String, String> attributes = new HashMap<>();
-        attributes.put(CoreAttributes.MIME_TYPE.key(), "application/json");
-        attributes.put(CoreAttributes.FILENAME.key(), flowFile.getAttribute(CoreAttributes.FILENAME.key()) + ".json");
-        flowFile = session.putAllAttributes(flowFile, attributes);
-        
-        session.transfer(flowFile, REL_SUCCESS);
-        final String endpointName = context.getProperty(ENDPOINT).getValue();
-        String transitUri = api.getApiClient().getBasePath();
-        if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
-            transitUri += SAMPLE_PATH;
+        try {
+            int tweetCount = 0;
+            writer.beginListing();
+            do {
+                getLogger().info("Tweet: {}", new Object[]{tweet});
+                writer.addToListing(tweet);
+                tweetCount++;
+                tweet = messageQueue.poll();
+            } while (!messageQueue.isEmpty());
+
+            getLogger().info("Successfully listed {} new tweets; routing to success", tweetCount);
+            writer.finishListing();
+        } catch (final Exception e) {
+            getLogger().error("Failed to record tweets due to {}", new Object[]{e}, e);
+            writer.finishListingExceptionally(e);
+            session.rollback();
+            context.yield();
+            return;
         }
-        else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
-            transitUri += SEARCH_PATH;
-        }
-        else {
-            throw new AssertionError("Endpoint was invalid value: " + endpointName);
-        }
-        session.getProvenanceReporter().receive(flowFile, transitUri);
+
+
+//        // prev code
+//        FlowFile flowFile = session.create();
+//        flowFile = session.write(flowFile, new OutputStreamCallback() {
+//            @Override
+//            public void process(OutputStream out) throws IOException {
+//                out.write(tweet.getBytes(StandardCharsets.UTF_8));
+//            }
+//        });
+//
+//        final Map<String, String> attributes = new HashMap<>();
+//        attributes.put(CoreAttributes.MIME_TYPE.key(), "application/json");
+//        attributes.put(CoreAttributes.FILENAME.key(), flowFile.getAttribute(CoreAttributes.FILENAME.key()) + ".json");
+//        flowFile = session.putAllAttributes(flowFile, attributes);
+//
+//        session.transfer(flowFile, REL_SUCCESS);
+//        final String endpointName = context.getProperty(ENDPOINT).getValue();
+//        String transitUri = api.getApiClient().getBasePath();
+//        if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
+//            transitUri += SAMPLE_PATH;
+//        }
+//        else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
+//            transitUri += SEARCH_PATH;
+//        }
+//        else {
+//            throw new AssertionError("Endpoint was invalid value: " + endpointName);
+//        }
+//        session.getProvenanceReporter().receive(flowFile, transitUri);
     }
 
     private class Responder implements com.twitter.clientlib.TweetsStreamListener {
