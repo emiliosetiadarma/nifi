@@ -1,6 +1,5 @@
 package org.apache.nifi.processors.twitter;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -20,7 +19,6 @@ import org.apache.nifi.components.AllowableValue;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.flowfile.attributes.CoreAttributes;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
@@ -29,24 +27,23 @@ import org.apache.nifi.processor.ProcessorInitializationContext;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
+import org.apache.nifi.schema.access.SchemaAccessStrategy;
 import org.apache.nifi.schema.access.SchemaNotFoundException;
 import org.apache.nifi.serialization.RecordSetWriter;
 import org.apache.nifi.serialization.RecordSetWriterFactory;
-import org.apache.nifi.serialization.SimpleRecordSchema;
 import org.apache.nifi.serialization.WriteResult;
-import org.apache.nifi.serialization.record.DataType;
 import org.apache.nifi.serialization.record.MapRecord;
 import org.apache.nifi.serialization.record.Record;
-import org.apache.nifi.serialization.record.RecordField;
-import org.apache.nifi.serialization.record.RecordFieldType;
 import org.apache.nifi.serialization.record.RecordSchema;
+import org.apache.nifi.schema.access.InferenceSchemaStrategy;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 @SupportsBatching
@@ -96,45 +93,45 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
     private static TwitterApi api;
     private TwitterCredentials creds;
 
-    private volatile BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(5000);
+    private volatile LinkedBlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(5000);
 
     interface TweetWriter {
         void beginListing() throws SchemaNotFoundException, IOException;
-        void addToListing(final String tweet) throws IOException;
+        void addToListing(final String tweet) throws SchemaNotFoundException, IOException;
         void finishListing(final String endpointName) throws IOException;
         void finishListingExceptionally(final Exception cause);
-        boolean isCheckpoint();
     }
 
     static class RecordTweetWriter implements TweetWriter {
-        private static RecordSchema RECORD_SCHEMA;
-
         private static final String ID = "id";
         private static final String TEXT ="text";
         private static final String AUTHOR_ID = "author_id";
         private static final String CREATED_AT = "created_at";
-        static {
-            final List<RecordField> fields = new ArrayList<>();
-            fields.add(new RecordField(ID, RecordFieldType.STRING.getDataType(), false));
-            fields.add(new RecordField(TEXT, RecordFieldType.STRING.getDataType(), false));
-            fields.add(new RecordField(AUTHOR_ID, RecordFieldType.STRING.getDataType(), false));
-            fields.add(new RecordField(CREATED_AT, RecordFieldType.STRING.getDataType(), false));
-            RECORD_SCHEMA = new SimpleRecordSchema(fields);
-        }
 
+        private final ProcessContext context;
         private final ProcessSession session;
         private final RecordSetWriterFactory writerFactory;
         private final ComponentLog logger;
         private RecordSetWriter recordWriter;
+        private RecordSchema schema;
         private FlowFile flowFile;
 
-        public RecordTweetWriter(final ProcessSession session, final RecordSetWriterFactory writerFactory, final ComponentLog logger) {
+        public RecordTweetWriter(final ProcessContext context, final ProcessSession session,
+                                 final RecordSetWriterFactory writerFactory, final ComponentLog logger) {
+            this.context = context;
             this.session = session;
             this.writerFactory = writerFactory;
             this.logger = logger;
         }
 
-        private Record createRecordForListing(String tweet) {
+        private Record createRecordForListing(String tweet) throws SchemaNotFoundException, IOException {
+            SchemaAccessStrategy strategy = new InferenceSchemaStrategy();
+            InputStream contentStream = new ByteArrayInputStream(tweet.getBytes(StandardCharsets.UTF_8));
+
+            if (schema == null) {
+                schema = strategy.getSchema(null, contentStream, null);
+            }
+
             JsonObject tweetJson = new Gson().fromJson(tweet, JsonObject.class);
             assert tweetJson.isJsonObject();
 
@@ -142,9 +139,9 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             values.put(ID, tweetJson.get(ID).getAsString());
             values.put(TEXT, tweetJson.get(TEXT).getAsString());
             values.put(AUTHOR_ID, tweetJson.get(AUTHOR_ID).getAsString());
-//            values.put(CREATED_AT);
+            values.put(CREATED_AT, tweetJson.get(CREATED_AT).getAsString());
 
-            return new MapRecord(RECORD_SCHEMA, values);
+            return new MapRecord(schema, values);
         }
 
         @Override
@@ -152,12 +149,12 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             flowFile = session.create();
 
             final OutputStream out = session.write(flowFile);
-            recordWriter = writerFactory.createWriter(logger, RECORD_SCHEMA, out, flowFile);
+            recordWriter = writerFactory.createWriter(logger, schema, out, flowFile);
             recordWriter.beginRecordSet();
         }
 
         @Override
-        public void addToListing(final String tweet) throws IOException {
+        public void addToListing(final String tweet) throws SchemaNotFoundException, IOException {
             Record record = createRecordForListing(tweet);
             recordWriter.write(record);
         }
@@ -172,8 +169,8 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             } else {
                 final Map<String, String> attributes = new HashMap<>(writeResult.getAttributes());
                 attributes.put("record.count", String.valueOf(writeResult.getRecordCount()));
-                attributes.put(CoreAttributes.MIME_TYPE.key(), "application/json");
-                attributes.put(CoreAttributes.FILENAME.key(), CoreAttributes.FILENAME.key() + ".json");
+//                attributes.put(CoreAttributes.MIME_TYPE.key(), "application/json");
+//                attributes.put(CoreAttributes.FILENAME.key(), CoreAttributes.FILENAME.key() + ".json");
                 flowFile = session.putAllAttributes(flowFile, attributes);
 
                 session.transfer(flowFile, REL_SUCCESS);
@@ -183,6 +180,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 
         @Override
         public void finishListingExceptionally(final Exception cause) {
+            logger.error("Error occurred during listing, finishing exceptionally: {}", new Object[] {cause.getMessage()}, cause);
             try {
                 recordWriter.close();
             } catch (IOException e) {
@@ -190,11 +188,6 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             }
 
             session.remove(flowFile);
-        }
-
-        @Override
-        public boolean isCheckpoint() {
-            return false;
         }
     }
 
@@ -265,17 +258,17 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         }
     }
 
-    @Override
-    public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
-        RecordTweetWriter writer;
+    private RecordTweetWriter createWriter(final ProcessContext context, final ProcessSession session) {
         final RecordSetWriterFactory writerFactory = context.getProperty(RECORD_WRITER).asControllerService(RecordSetWriterFactory.class);
         if (writerFactory == null) {
             context.yield();
-            return;
+            return null;
         } else {
-            writer = new RecordTweetWriter(session, writerFactory, getLogger());
+            return new RecordTweetWriter(context, session, writerFactory, getLogger());
         }
+    }
 
+    private void processTweets(final RecordTweetWriter writer, final ProcessContext context, final ProcessSession session) {
         String tweet = messageQueue.poll();
         if (tweet == null) {
             context.yield();
@@ -317,13 +310,23 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         }
     }
 
+    @Override
+    public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
+        RecordTweetWriter writer = createWriter(context, session);
+
+        if (writer == null) {
+            context.yield();
+        }
+
+        processTweets(writer, context, session);
+    }
+
     private class Responder implements com.twitter.clientlib.TweetsStreamListener {
         @Override
         public void actionOnTweetsStream(StreamingTweet streamingTweet) {
             Gson gson = new Gson();
 
             final String tweet = gson.toJson(streamingTweet.getData());
-
             final DateTimeFormatter formatter = DateTimeFormatter.ISO_ZONED_DATE_TIME;
             final String formattedCreatedAtString = formatter.format(streamingTweet.getData().getCreatedAt());
             JsonObject jsonObj = JsonParser.parseString(tweet).getAsJsonObject();
