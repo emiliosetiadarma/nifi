@@ -15,10 +15,12 @@ import org.apache.nifi.annotation.behavior.WritesAttribute;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.components.AllowableValue;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
+import org.apache.nifi.flowfile.attributes.CoreAttributes;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
@@ -50,7 +52,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 @InputRequirement(Requirement.INPUT_FORBIDDEN)
 @Tags({"twitter", "tweets", "social media", "status", "json", "Record"})
 @CapabilityDescription("Streams tweets from Twitter's streaming API v2.")
-@WritesAttribute(attribute = "mime.type", description = "Sets mime type to application/json")
+@WritesAttribute(attribute = "mime.type", description = "Sets mime type to format specified by Record Writer")
 public class ConsumeTwitterRecord extends AbstractProcessor {
 
     static final AllowableValue ENDPOINT_SAMPLE = new AllowableValue("Sample Endpoint", "Sample Endpoint", "The endpoint that provides a stream of about 1% of tweets in real-time");
@@ -72,14 +74,20 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             .sensitive(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
-
-    static final PropertyDescriptor RECORD_WRITER = new PropertyDescriptor.Builder()
+    public static final PropertyDescriptor RECORD_WRITER = new PropertyDescriptor.Builder()
             .name("record-writer")
             .displayName("Record Writer")
             .description("The Record Writer to use in order to serialize the Tweets to the output FlowFile")
             .identifiesControllerService(RecordSetWriterFactory.class)
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .required(true)
+            .build();
+    public static final PropertyDescriptor MAX_TWEET_PER_RECORD = new PropertyDescriptor.Builder()
+            .name("Max Tweets per Record")
+            .description("The maximum number of tweets per record")
+            .required(true)
+            .addValidator(StandardValidators.POSITIVE_INTEGER_VALIDATOR)
+            .defaultValue("10")
             .build();
 
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
@@ -148,8 +156,6 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             return new MapRecord(schema, values);
         }
 
-
-
         @Override
         public void beginListing(final String tweet) throws SchemaNotFoundException, IOException {
             if (schema == null) {
@@ -165,12 +171,14 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         @Override
         public void addToListing(final String tweet) throws SchemaNotFoundException, IOException {
             Record record = createRecordForListing(tweet);
-            logger.error("Names: {}", schema.getFieldNames());
             Set<String> fieldNames = record.getRawFieldNames();
-            logger.error("ConsumeTwitterRecord Record debugging record fields: {}", fieldNames.toString());
+
+            logger.info("Names: {}", schema.getFieldNames());
+            logger.info("ConsumeTwitterRecord Record debugging record fields: {}", fieldNames.toString());
             for (String fieldName: fieldNames) {
-                logger.error("{}: {}", fieldName, record.getValue(fieldName).toString());
+                logger.info("{}: {}", fieldName, record.getValue(fieldName).toString());
             }
+
             recordWriter.write(record);
         }
 
@@ -184,7 +192,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             } else {
                 final Map<String, String> attributes = new HashMap<>(writeResult.getAttributes());
                 attributes.put("record.count", String.valueOf(writeResult.getRecordCount()));
-//                attributes.put(CoreAttributes.MIME_TYPE.key(), "application/json");
+                attributes.put(CoreAttributes.MIME_TYPE.key(), recordWriter.getMimeType());
 //                attributes.put(CoreAttributes.FILENAME.key(), CoreAttributes.FILENAME.key() + ".json");
                 flowFile = session.putAllAttributes(flowFile, attributes);
 
@@ -212,6 +220,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         descriptors.add(ENDPOINT);
         descriptors.add(BEARER_TOKEN);
         descriptors.add(RECORD_WRITER);
+        descriptors.add(MAX_TWEET_PER_RECORD);
 
         this.descriptors = Collections.unmodifiableList(descriptors);
 
@@ -242,11 +251,66 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         api = new TwitterApi(creds);
     }
 
+    private RecordTweetWriter createWriter(final ProcessContext context, final ProcessSession session) {
+        final RecordSetWriterFactory writerFactory = context.getProperty(RECORD_WRITER).asControllerService(RecordSetWriterFactory.class);
+        if (writerFactory == null) {
+//            context.yield();
+            return null;
+        } else {
+            return new RecordTweetWriter(context, session, writerFactory, getLogger());
+        }
+    }
+
+    private void processTweets(final RecordTweetWriter writer, final ProcessContext context, final ProcessSession session) {
+        if (writer == null) {
+//            context.yield();
+            return;
+        }
+
+        String tweet = messageQueue.poll();
+        if (tweet == null) {
+//            context.yield();
+            return;
+        }
+
+        try {
+            int tweetCount = 0;
+            writer.beginListing(tweet);
+            do {
+                getLogger().info("Tweet: {}", new Object[]{tweet});
+                writer.addToListing(tweet);
+                tweetCount++;
+                tweet = messageQueue.poll();
+            } while (!messageQueue.isEmpty() && tweetCount < context.getProperty(MAX_TWEET_PER_RECORD).asInteger());
+
+            getLogger().info("Successfully listed {} new tweets; routing to success", tweetCount);
+
+            final String endpointName = context.getProperty(ENDPOINT).getValue();
+            String transitUri = api.getApiClient().getBasePath();
+            if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
+                transitUri += SAMPLE_PATH;
+            }
+            else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
+                transitUri += SEARCH_PATH;
+            }
+            else {
+                throw new AssertionError("Endpoint was invalid value: " + endpointName);
+            }
+
+            writer.finishListing(transitUri);
+            session.commitAsync();
+        } catch (final Exception e) {
+            getLogger().error("Failed to record tweets due to {}", new Object[]{e}, e);
+            writer.finishListingExceptionally(e);
+            session.rollback();
+//            context.yield();
+            return;
+        }
+    }
+
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
-        if (api == null) {
-            initializeClient(context);
-        }
+        initializeClient(context);
 
         final String endpointName = context.getProperty(ENDPOINT).getValue();
         final Set<String> tweetFields = new HashSet<>(Arrays.asList("author_id", "id", "created_at", "text"));
@@ -273,67 +337,17 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         }
     }
 
-    private RecordTweetWriter createWriter(final ProcessContext context, final ProcessSession session) {
-        final RecordSetWriterFactory writerFactory = context.getProperty(RECORD_WRITER).asControllerService(RecordSetWriterFactory.class);
-        if (writerFactory == null) {
-            context.yield();
-            return null;
-        } else {
-            return new RecordTweetWriter(context, session, writerFactory, getLogger());
-        }
-    }
-
-    private void processTweets(final RecordTweetWriter writer, final ProcessContext context, final ProcessSession session) {
-        String tweet = messageQueue.poll();
-        if (tweet == null) {
-            context.yield();
-            return;
-        }
-
-        try {
-            int tweetCount = 0;
-            writer.beginListing(tweet);
-            do {
-                getLogger().info("Tweet: {}", new Object[]{tweet});
-                writer.addToListing(tweet);
-                tweetCount++;
-                tweet = messageQueue.poll();
-            } while (!messageQueue.isEmpty());
-
-            getLogger().info("Successfully listed {} new tweets; routing to success", tweetCount);
-
-            final String endpointName = context.getProperty(ENDPOINT).getValue();
-            String transitUri = api.getApiClient().getBasePath();
-            if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
-                transitUri += SAMPLE_PATH;
-            }
-            else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
-                transitUri += SEARCH_PATH;
-            }
-            else {
-                throw new AssertionError("Endpoint was invalid value: " + endpointName);
-            }
-
-            writer.finishListing(transitUri);
-            session.commitAsync();
-        } catch (final Exception e) {
-            getLogger().error("Failed to record tweets due to {}", new Object[]{e}, e);
-            writer.finishListingExceptionally(e);
-            session.rollback();
-            context.yield();
-            return;
-        }
-    }
-
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
         RecordTweetWriter writer = createWriter(context, session);
-
-        if (writer == null) {
-            context.yield();
-        }
-
         processTweets(writer, context, session);
+    }
+
+    @OnStopped
+    public void onStopped() {
+        this.creds = null;
+        this.api = null;
+        this.messageQueue.clear();
     }
 
     private class Responder implements com.twitter.clientlib.TweetsStreamListener {
