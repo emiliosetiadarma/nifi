@@ -96,7 +96,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
     private volatile LinkedBlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(5000);
 
     interface TweetWriter {
-        void beginListing() throws SchemaNotFoundException, IOException;
+        void beginListing(final String tweet) throws SchemaNotFoundException, IOException;
         void addToListing(final String tweet) throws SchemaNotFoundException, IOException;
         void finishListing(final String endpointName) throws IOException;
         void finishListingExceptionally(final Exception cause);
@@ -124,12 +124,16 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             this.logger = logger;
         }
 
-        private Record createRecordForListing(String tweet) throws SchemaNotFoundException, IOException {
+        private RecordSchema inferSchemaFromTweet(final String tweet) throws SchemaNotFoundException, IOException {
             SchemaAccessStrategy strategy = new InferenceSchemaStrategy();
             InputStream contentStream = new ByteArrayInputStream(tweet.getBytes(StandardCharsets.UTF_8));
 
+            return strategy.getSchema(null, contentStream, null);
+        }
+
+        private Record createRecordForListing(final String tweet) throws SchemaNotFoundException, IOException {
             if (schema == null) {
-                schema = strategy.getSchema(null, contentStream, null);
+                schema = inferSchemaFromTweet(tweet);
             }
 
             JsonObject tweetJson = new Gson().fromJson(tweet, JsonObject.class);
@@ -144,10 +148,15 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             return new MapRecord(schema, values);
         }
 
-        @Override
-        public void beginListing() throws SchemaNotFoundException, IOException {
-            flowFile = session.create();
 
+
+        @Override
+        public void beginListing(final String tweet) throws SchemaNotFoundException, IOException {
+            if (schema == null) {
+                schema = inferSchemaFromTweet(tweet);
+            }
+
+            flowFile = session.create();
             final OutputStream out = session.write(flowFile);
             recordWriter = writerFactory.createWriter(logger, schema, out, flowFile);
             recordWriter.beginRecordSet();
@@ -156,6 +165,12 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         @Override
         public void addToListing(final String tweet) throws SchemaNotFoundException, IOException {
             Record record = createRecordForListing(tweet);
+            logger.error("Names: {}", schema.getFieldNames());
+            Set<String> fieldNames = record.getRawFieldNames();
+            logger.error("ConsumeTwitterRecord Record debugging record fields: {}", fieldNames.toString());
+            for (String fieldName: fieldNames) {
+                logger.error("{}: {}", fieldName, record.getValue(fieldName).toString());
+            }
             recordWriter.write(record);
         }
 
@@ -277,7 +292,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 
         try {
             int tweetCount = 0;
-            writer.beginListing();
+            writer.beginListing(tweet);
             do {
                 getLogger().info("Tweet: {}", new Object[]{tweet});
                 writer.addToListing(tweet);
