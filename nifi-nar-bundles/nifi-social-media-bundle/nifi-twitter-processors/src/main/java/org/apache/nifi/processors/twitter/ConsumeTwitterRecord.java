@@ -100,6 +100,7 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 
     private static TwitterApi api;
     private TwitterCredentials creds;
+    private TwitterListener listener;
 
     private volatile LinkedBlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(5000);
 
@@ -327,10 +328,13 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             else {
                 throw new AssertionError("Endpoint was invalid value: " + endpointName);
             }
-            org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder responder = new org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder();
-            TweetsStreamListenersExecutor tsle = new TweetsStreamListenersExecutor(result);
-            tsle.addListener(responder);
-            tsle.executeListeners();
+            listener = new TwitterListener(result, messageQueue, getLogger());
+            listener.execute();
+
+//            org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder responder = new org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder();
+//            TweetsStreamListenersExecutor tsle = new TweetsStreamListenersExecutor(result);
+//            tsle.addListener(responder);
+//            tsle.executeListeners();
         }
         catch (ApiException e) {
             getLogger().error("Received error {}: {}.", new Object[]{e.getCode(), e.getResponseBody()});
@@ -348,6 +352,10 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         this.creds = null;
         this.api = null;
         this.messageQueue.clear();
+        if (this.listener != null) {
+            this.listener.stop();
+        }
+        this.listener = null;
     }
 
     private class Responder implements com.twitter.clientlib.TweetsStreamListener {
