@@ -5,77 +5,72 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twitter.clientlib.ApiException;
 import com.twitter.clientlib.TwitterCredentials;
 import com.twitter.clientlib.api.TwitterApi;
+import org.apache.nifi.logging.ComponentLog;
+import org.apache.nifi.processor.ProcessContext;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class TwitterStreamAPI{
+public class TwitterStreamAPI {
     public enum Endpoint {
         SAMPLE,
         SEARCH
     }
-    public static String SAMPLE_ENDPOINT = "SAMPLE_ENDPOINT";
-    public static String SEARCH_ENDPOINT = "SEARCH_ENDPOINT";
+
+    public static final String SAMPLE_PATH = "/2/tweets/sample/stream";
+    public static final String SEARCH_PATH = "/2/tweets/search/stream";
 
     private static final String BEARER_TOKEN = "BEARER_TOKEN";
-    private static final String SAMPLE_PATH = "/2/tweets/sample/stream";
-    private static final String SEARCH_PATH = "/2/tweets/search/stream";
 
-    private TwitterCredentials creds;
     private TwitterApi api;
     private Endpoint endpoint;
-
-
-    private TwitterStreamQueuer queuer;
-    private BlockingQueue<String> queue;
     private Set<String> tweetFields;
-    private volatile boolean exit;
 
     private InputStream stream;
+    private TwitterStreamQueuer queuer;
+    private BlockingQueue<String> queue;
+    private volatile boolean exit;
 
-    public TwitterStreamAPI() {
-        tweetFields = new HashSet<>();
-        tweetFields.add("author_id");
-        tweetFields.add("id");
-        tweetFields.add("created_at");
+    private ComponentLog logger;
 
-        queue = new LinkedBlockingQueue<>();
-    }
+    public TwitterStreamAPI(final ComponentLog logger, final ProcessContext context) {
+        tweetFields = new HashSet<>(Arrays.asList("author_id", "id", "created_at", "text"));
 
-    public void initializeApi(final Map<String, String> env) {
-        System.out.println("Initializing API");
-        creds = new TwitterCredentials();
-        creds.setBearerToken(env.get(BEARER_TOKEN));
+        queue = new LinkedBlockingQueue<>(1000);
+
+        this.logger = logger;
+
+        TwitterCredentials creds = new TwitterCredentials();
+        creds.setBearerToken(context.getProperty(BEARER_TOKEN).getValue());
 
         api = new TwitterApi(creds);
+    }
+
+    public String getBasePath() {
+        return api.getApiClient().getBasePath();
     }
 
     public void setEndpoint(final Endpoint endpoint) {
         this.endpoint = endpoint;
     }
 
-    public void deleteEndpoint() {
-        this.endpoint = null;
-    }
-
-
     public String getTweet() {
         if (stream == null) {
-            System.err.println("Stream is null, no tweets to fetch");
-            return null;
-        }
-        if (queuer == null || !queuer.isAlive()) {
-            System.err.println("No tweet queuer thread running, cannot consume tweets");
+            logger.warn("Stream is null or has not started, no tweets to fetch");
             return null;
         }
         if (queue.isEmpty()) {
-            System.out.println("Queue is empty, no Tweet to return");
+            logger.warn("No tweet queued, will return null");
+            return null;
+        }
+        if (queuer == null || !queuer.isAlive()) {
+            logger.warn("No queuer started, or queuer has finished, restart stream to fetch tweets");
             return null;
         }
 
@@ -84,8 +79,18 @@ public class TwitterStreamAPI{
         return tweet;
     }
 
+    public void emptyQueue() {
+        while (!queue.isEmpty()) {
+            queue.poll();
+        }
+    }
+
+    public boolean isQueueEmpty() {
+        return queue.isEmpty();
+    }
+
     public void startStream() {
-        System.out.println("Starting stream");
+        logger.info("starting stream");
         assert endpoint != null;
 
         try {
@@ -94,10 +99,11 @@ public class TwitterStreamAPI{
             } else if (endpoint == Endpoint.SEARCH) {
                 stream = api.searchStream(null, tweetFields, null , null, null, null, null);
             } else {
-                System.err.println("Endpoint is an invalid value.");
+                logger.warn("Endpoint is an invalid value.");
+                return;
             }
         } catch (ApiException e) {
-            System.err.println("Ran into API exception while starting the stream");
+            logger.error("Received error {}: {}.", new Object[]{e.getCode(), e.getResponseBody()});
         }
 
         // set exited thread status to false
@@ -112,50 +118,37 @@ public class TwitterStreamAPI{
     }
 
     public void stopStream() {
-        System.out.println("Stopping Stream");
-        stream = null;
+        logger.info("stopping stream");
 
         exit = true;
-    }
-
-    public void initializeQueue() {
-        queue = new LinkedBlockingQueue<>(1000);
-    }
-
-    public void emptyQueue() {
-        while (!queue.isEmpty()) {
-            queue.poll();
+        try {
+            queuer.join(10000L);
+        } catch (InterruptedException e) {
+            logger.error("Interrupted exception while waiting for queuer to terminate");
         }
-    }
 
-    public void cleanUp() {
-        stopStream();
+        stream = null;
+
+        // wipe out old tweets for future starting stream
         emptyQueue();
-
-        creds = null;
-        api = null;
     }
+
 
     private class TwitterStreamQueuer extends Thread {
         @Override
         public void run() {
             try {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                for (String line = reader.readLine(); line != null ; line = reader.readLine()) {
-                    if (exit) {
-                        break;
-                    }
+                String line = reader.readLine();
+                while (!exit && line != null) {
                     JsonNode json = new ObjectMapper().readTree(line);
                     json = json.path("data");
-                    System.out.println(json);
-                    System.out.println(line);
-                    queue.offer(line);
-                    System.out.println("");
+                    queue.offer(json.toString());
+                    line = reader.readLine();
                 }
             } catch (Exception e) {
-                System.err.println(e.getMessage());
+                logger.warn(e.getMessage());
             }
-            System.out.println("exiting tread");
         }
     }
 
