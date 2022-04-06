@@ -37,6 +37,8 @@ public class TwitterStreamAPI {
     private BlockingQueue<String> queue;
     private volatile boolean exit;
 
+    private volatile boolean isStarted;
+
     private ComponentLog logger;
 
     public TwitterStreamAPI(final ComponentLog logger, final ProcessContext context) {
@@ -50,6 +52,8 @@ public class TwitterStreamAPI {
         creds.setBearerToken(context.getProperty(BEARER_TOKEN).getValue());
 
         api = new TwitterApi(creds);
+
+        isStarted = false;
     }
 
     public String getBasePath() {
@@ -62,15 +66,15 @@ public class TwitterStreamAPI {
 
     public String getTweet() {
         if (stream == null) {
-            logger.warn("Stream is null or has not started, no tweets to fetch");
+//            logger.warn("Stream is null or has not started, no tweets to fetch");
             return null;
         }
         if (queue.isEmpty()) {
-            logger.warn("No tweet queued, will return null");
+//            logger.warn("No tweet queued, will return null");
             return null;
         }
         if (queuer == null || !queuer.isAlive()) {
-            logger.warn("No queuer started, or queuer has finished, restart stream to fetch tweets");
+//            logger.warn("No queuer started, or queuer has finished, restart stream to fetch tweets");
             return null;
         }
 
@@ -90,8 +94,11 @@ public class TwitterStreamAPI {
     }
 
     public void startStream() {
-        logger.info("starting stream");
         assert endpoint != null;
+
+        if (isStarted) {
+            return;
+        }
 
         try {
             if (endpoint == Endpoint.SAMPLE) {
@@ -99,7 +106,7 @@ public class TwitterStreamAPI {
             } else if (endpoint == Endpoint.SEARCH) {
                 stream = api.searchStream(null, tweetFields, null , null, null, null, null);
             } else {
-                logger.warn("Endpoint is an invalid value.");
+                logger.error("Endpoint is an invalid value.");
                 return;
             }
         } catch (ApiException e) {
@@ -109,17 +116,14 @@ public class TwitterStreamAPI {
         // set exited thread status to false
         exit = false;
 
-        // wipe out old tweets and will fill with newer stream
-        emptyQueue();
-
         // start the Queuer
         queuer = new TwitterStreamQueuer();
         queuer.start();
+
+        isStarted = true;
     }
 
     public void stopStream() {
-        logger.info("stopping stream");
-
         exit = true;
         try {
             queuer.join(10000L);
@@ -127,10 +131,11 @@ public class TwitterStreamAPI {
             logger.error("Interrupted exception while waiting for queuer to terminate");
         }
 
-        stream = null;
+        isStarted = false;
+    }
 
-        // wipe out old tweets for future starting stream
-        emptyQueue();
+    public boolean isStreamStarted() {
+        return isStarted;
     }
 
 
@@ -144,6 +149,7 @@ public class TwitterStreamAPI {
                     JsonNode json = new ObjectMapper().readTree(line);
                     json = json.path("data");
                     queue.offer(json.toString());
+                    logger.error(json.toString());
                     line = reader.readLine();
                 }
             } catch (Exception e) {

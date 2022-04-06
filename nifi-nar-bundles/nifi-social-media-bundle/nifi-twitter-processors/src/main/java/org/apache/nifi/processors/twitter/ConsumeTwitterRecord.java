@@ -240,10 +240,6 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         return this.descriptors;
     }
 
-    private void initializeAPI(final ProcessContext context) {
-        api = new TwitterStreamAPI(getLogger(), context);
-    }
-
     private RecordTweetWriter createWriter(final ProcessContext context, final ProcessSession session) {
         final RecordSetWriterFactory writerFactory = context.getProperty(RECORD_WRITER).asControllerService(RecordSetWriterFactory.class);
         if (writerFactory == null) {
@@ -259,8 +255,9 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
         }
 
         String tweet = api.getTweet();
-        if (tweet == null) {
-            return;
+        while (tweet == null) {
+            context.yield();
+            tweet = api.getTweet();
         }
 
         try {
@@ -300,21 +297,23 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
 
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
-        initializeAPI(context);
+//        if (api == null || !api.isStreamStarted()) {
+            api = new TwitterStreamAPI(getLogger(), context);
 
-        final String endpointName = context.getProperty(ENDPOINT).getValue();
+            final String endpointName = context.getProperty(ENDPOINT).getValue();
 
-        if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
-            api.setEndpoint(TwitterStreamAPI.Endpoint.SAMPLE);
-        }
-        else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
-            api.setEndpoint(TwitterStreamAPI.Endpoint.SEARCH);
-        }
-        else {
-            throw new AssertionError("Endpoint was an invalid value: " + endpointName);
-        }
+            if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
+                api.setEndpoint(TwitterStreamAPI.Endpoint.SAMPLE);
+            }
+            else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
+                api.setEndpoint(TwitterStreamAPI.Endpoint.SEARCH);
+            }
+            else {
+                throw new AssertionError("Endpoint was an invalid value: " + endpointName);
+            }
 
-        api.startStream();
+            api.startStream();
+//        }
     }
 
     @Override
