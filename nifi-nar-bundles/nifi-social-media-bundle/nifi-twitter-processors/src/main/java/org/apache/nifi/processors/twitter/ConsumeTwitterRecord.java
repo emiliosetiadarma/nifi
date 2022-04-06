@@ -194,7 +194,6 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
                 final Map<String, String> attributes = new HashMap<>(writeResult.getAttributes());
                 attributes.put("record.count", String.valueOf(writeResult.getRecordCount()));
                 attributes.put(CoreAttributes.MIME_TYPE.key(), recordWriter.getMimeType());
-//                attributes.put(CoreAttributes.FILENAME.key(), CoreAttributes.FILENAME.key() + ".json");
                 flowFile = session.putAllAttributes(flowFile, attributes);
 
                 session.transfer(flowFile, REL_SUCCESS);
@@ -330,11 +329,6 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             }
             listener = new TwitterListener(result, messageQueue, getLogger());
             listener.execute();
-
-//            org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder responder = new org.apache.nifi.processors.twitter.ConsumeTwitterRecord.Responder();
-//            TweetsStreamListenersExecutor tsle = new TweetsStreamListenersExecutor(result);
-//            tsle.addListener(responder);
-//            tsle.executeListeners();
         }
         catch (ApiException e) {
             getLogger().error("Received error {}: {}.", new Object[]{e.getCode(), e.getResponseBody()});
@@ -356,23 +350,5 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             this.listener.stop();
         }
         this.listener = null;
-    }
-
-    private class Responder implements com.twitter.clientlib.TweetsStreamListener {
-        @Override
-        public void actionOnTweetsStream(StreamingTweet streamingTweet) {
-            Gson gson = new Gson();
-
-            final String tweet = gson.toJson(streamingTweet.getData());
-            final DateTimeFormatter formatter = DateTimeFormatter.ISO_ZONED_DATE_TIME;
-            final String formattedCreatedAtString = formatter.format(streamingTweet.getData().getCreatedAt());
-            JsonObject jsonObj = JsonParser.parseString(tweet).getAsJsonObject();
-            jsonObj.remove("created_at");
-            jsonObj.addProperty("created_at", formattedCreatedAtString);
-
-            final String formattedTweetJson = gson.toJson(jsonObj);
-
-            messageQueue.add(formattedTweetJson);
-        }
     }
 }
