@@ -248,12 +248,19 @@ public class ConsumeTwitterRecord extends AbstractProcessor {
             tweet = messageQueue.poll();
         } while ( !messageQueue.isEmpty() && StringUtils.isEmpty(tweet));
 
-        try {
-            writer.inferSchema(tweet);
-        } catch (SchemaNotFoundException | IOException e) {
-            getLogger().error("Error occurred while inferring schema: {}", new Object[] {e.getMessage()});
+        if (StringUtils.isEmpty(tweet)) {
             context.yield();
             return;
+        }
+
+        if (!writer.hasSchema()) {
+            try {
+                writer.inferSchema(tweet);
+            } catch (SchemaNotFoundException | IOException e) {
+                getLogger().error("Error occurred while inferring schema: {}", new Object[] {e.getMessage()});
+                context.yield();
+                return;
+            }
         }
 
         try {
