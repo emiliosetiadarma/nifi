@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class TwitterStreamAPI {
@@ -25,7 +24,7 @@ public class TwitterStreamAPI {
     public static final String SAMPLE_PATH = "/2/tweets/sample/stream";
     public static final String SEARCH_PATH = "/2/tweets/search/stream";
 
-    private static final String BEARER_TOKEN = "Bearer Token";
+    private static final String BEARER_TOKEN_PROPERTY_NAME = "Bearer Token";
 
     private final BlockingQueue<String> queue;
     private final ComponentLog logger;
@@ -41,12 +40,12 @@ public class TwitterStreamAPI {
         assert queue != null;
         assert logger != null;
 
-        this.queue = new LinkedBlockingQueue<>(1000);
+        this.queue = queue;
         this.logger = logger;
         this.tweetFields = new HashSet<>(Arrays.asList("author_id", "id", "created_at", "text"));
 
         TwitterCredentials creds = new TwitterCredentials();
-        creds.setBearerToken(context.getProperty(BEARER_TOKEN).getValue());
+        creds.setBearerToken(context.getProperty(BEARER_TOKEN_PROPERTY_NAME).getValue());
         api = new TwitterApi(creds);
 
         this.executorService = Executors.newSingleThreadExecutor();
