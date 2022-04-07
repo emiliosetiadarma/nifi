@@ -1,7 +1,5 @@
 package org.apache.nifi.processors.twitter;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twitter.clientlib.ApiException;
 import com.twitter.clientlib.TwitterCredentials;
 import com.twitter.clientlib.api.TwitterApi;
@@ -24,6 +22,8 @@ import java.util.concurrent.TimeUnit;
 public class TwitterStreamAPI {
     public static final String SEARCH_ENDPOINT = "Search Endpoint";
     public static final String SAMPLE_ENDPOINT = "Sample Endpoint";
+    public static final String SAMPLE_PATH = "/2/tweets/sample/stream";
+    public static final String SEARCH_PATH = "/2/tweets/search/stream";
 
     private static final String BEARER_TOKEN = "BEARER_TOKEN";
 
@@ -50,6 +50,10 @@ public class TwitterStreamAPI {
         api = new TwitterApi(creds);
 
         this.executorService = Executors.newSingleThreadExecutor();
+    }
+
+    public String getBasePath() {
+        return api.getApiClient().getBasePath();
     }
 
     /**

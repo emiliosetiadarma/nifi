@@ -1,5 +1,7 @@
 package org.apache.nifi.processors.twitter;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twitter.clientlib.ApiException;
 import com.twitter.clientlib.TwitterCredentials;
 import com.twitter.clientlib.api.TwitterApi;
@@ -68,11 +70,16 @@ public class ConsumeTwitter extends AbstractProcessor {
     private List<PropertyDescriptor> descriptors;
     private Set<Relationship> relationships;
 
-    private TwitterApi api;
-    private TwitterCredentials creds;
-    private TwitterListener listener;
+    private TwitterStreamAPI api;
+    private ObjectMapper mapper;
 
     private volatile BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>(5000);
+
+    private void emptyQueue() {
+        while (!messageQueue.isEmpty()) {
+            messageQueue.poll();
+        }
+    }
 
     @Override
     protected void init(ProcessorInitializationContext context) {
@@ -85,6 +92,8 @@ public class ConsumeTwitter extends AbstractProcessor {
         final Set<Relationship> relationships = new HashSet<>();
         relationships.add(REL_SUCCESS);
         this.relationships = Collections.unmodifiableSet(relationships);
+
+        this.mapper = new ObjectMapper();
     }
 
     @Override
@@ -98,42 +107,18 @@ public class ConsumeTwitter extends AbstractProcessor {
     }
 
 
-    /**
-     * Initializes a client to communicate to Twitter API. Client is based on the resource from
-     * https://github.com/twitterdev/twitter-api-java-sdk.
-     * @param context The context that is passed onto the processor from the NiFi framework
-     */
-    private void initializeClient(final ProcessContext context) {
-        creds = new TwitterCredentials();
-        creds.setBearerToken(context.getProperty(BEARER_TOKEN).getValue());
-        api = new TwitterApi(creds);
-    }
-
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
-        initializeClient(context);
-        emptyQueue();
-
+        api = new TwitterStreamAPI(context, messageQueue, getLogger());
         final String endpointName = context.getProperty(ENDPOINT).getValue();
-        final Set<String> tweetFields = new HashSet<>(Arrays.asList("author_id", "id", "created_at", "text"));
-
-        // The responder will keep on adding tweets to the BlockingQueue
-        InputStream result;
-        try {
-            if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
-                result = api.sampleStream(null, tweetFields, null, null, null, null, null);
-            }
-            else if (ENDPOINT_SEARCH.getValue().equals(endpointName)){
-                result = api.searchStream(null, tweetFields, null, null, null, null, null);
-            }
-            else {
-                throw new AssertionError("Endpoint was invalid value: " + endpointName);
-            }
-            listener = new TwitterListener(result, messageQueue, getLogger());
-            listener.execute();
+        if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
+            api.start(TwitterStreamAPI.SAMPLE_ENDPOINT);
         }
-        catch (ApiException e) {
-            getLogger().error("Received error {}: {}.", new Object[]{e.getCode(), e.getResponseBody()});
+        else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
+            api.start(TwitterStreamAPI.SEARCH_ENDPOINT);
+        }
+        else {
+            throw new AssertionError("Endpoint was invalid value: " + endpointName);
         }
     }
 
@@ -149,7 +134,10 @@ public class ConsumeTwitter extends AbstractProcessor {
         flowFile = session.write(flowFile, new OutputStreamCallback() {
             @Override
             public void process(OutputStream out) throws IOException {
-                out.write(tweet.getBytes(StandardCharsets.UTF_8));
+                JsonNode tweetJson = mapper.readTree(tweet);
+                tweetJson = tweetJson.path("data");
+                byte[] tweetBytes = tweetJson.toString().getBytes(StandardCharsets.UTF_8);
+                out.write(tweetBytes);
             }
         });
 
@@ -159,13 +147,14 @@ public class ConsumeTwitter extends AbstractProcessor {
         flowFile = session.putAllAttributes(flowFile, attributes);
         
         session.transfer(flowFile, REL_SUCCESS);
+
+        String transitUri = api.getBasePath();
         final String endpointName = context.getProperty(ENDPOINT).getValue();
-        String transitUri = api.getApiClient().getBasePath();
         if (ENDPOINT_SAMPLE.getValue().equals(endpointName)) {
-            transitUri += SAMPLE_PATH;
+            transitUri += TwitterStreamAPI.SAMPLE_PATH;
         }
         else if (ENDPOINT_SEARCH.getValue().equals(endpointName)) {
-            transitUri += SEARCH_PATH;
+            transitUri += TwitterStreamAPI.SEARCH_PATH;
         }
         else {
             throw new AssertionError("Endpoint was invalid value: " + endpointName);
@@ -175,16 +164,10 @@ public class ConsumeTwitter extends AbstractProcessor {
 
     @OnStopped
     public void onStopped() {
-        if (listener != null) {
-            listener.stop();
+        if (api != null) {
+            api.stop();
         }
         api = null;
         emptyQueue();
-    }
-
-    private void emptyQueue() {
-        while (!messageQueue.isEmpty()) {
-            messageQueue.poll();
-        }
     }
 }
