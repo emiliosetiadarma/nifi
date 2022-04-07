@@ -60,7 +60,6 @@ public class ConsumeTwitter extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
             .description("All tweets will be routed to this relationship.")
