@@ -25,7 +25,7 @@ public class TwitterStreamAPI {
     public static final String SAMPLE_PATH = "/2/tweets/sample/stream";
     public static final String SEARCH_PATH = "/2/tweets/search/stream";
 
-    private static final String BEARER_TOKEN = "BEARER_TOKEN";
+    private static final String BEARER_TOKEN = "Bearer Token";
 
     private final BlockingQueue<String> queue;
     private final ComponentLog logger;
