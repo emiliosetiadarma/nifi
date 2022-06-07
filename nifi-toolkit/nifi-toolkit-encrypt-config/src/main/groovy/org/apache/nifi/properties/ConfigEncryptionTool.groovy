@@ -29,8 +29,8 @@ import org.apache.commons.cli.Option
 import org.apache.commons.cli.Options
 import org.apache.commons.cli.ParseException
 import org.apache.commons.codec.binary.Hex
-import org.apache.nifi.encrypt.PropertyEncryptor
-import org.apache.nifi.encrypt.PropertyEncryptorFactory
+import org.apache.nifi.encrypt.PropertyValueHandler
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
 import org.apache.nifi.flow.encryptor.FlowEncryptor
 import org.apache.nifi.flow.encryptor.StandardFlowEncryptor
 import org.apache.nifi.properties.scheme.ProtectionScheme
@@ -729,11 +729,11 @@ class ConfigEncryptionTool {
                 (NiFiProperties.SENSITIVE_PROPS_ALGORITHM): newAlgorithm
         ])
 
-        final PropertyEncryptor inputEncryptor = PropertyEncryptorFactory.getPropertyEncryptor(inputProperties)
-        final PropertyEncryptor outputEncryptor = PropertyEncryptorFactory.getPropertyEncryptor(outputProperties)
+        final PropertyValueHandler inputHandler = getPropertyValueHandler(inputProperties)
+        final PropertyValueHandler outputHandler = getPropertyValueHandler(outputProperties)
 
         final FlowEncryptor flowEncryptor = new StandardFlowEncryptor()
-        flowEncryptor.processFlow(flowXmlContent, flowOutputStream, inputEncryptor, outputEncryptor)
+        flowEncryptor.processFlow(flowXmlContent, flowOutputStream, inputHandler, outputHandler)
 
         // Overwrite the original flow file with the migrated flow file
         Files.move(tempFlowXmlFile.toPath(), Paths.get(outputFlowXmlPath), StandardCopyOption.ATOMIC_MOVE)
@@ -1608,5 +1608,10 @@ class ConfigEncryptionTool {
         String port = niFiProperties.getConfiguredHttpOrHttpsPort()
 
         "${protocol}://${host}:${port}"
+    }
+
+    PropertyValueHandler getPropertyValueHandler(NiFiProperties properties) {
+        final PropertyValueHandlerBuilder builder = new PropertyValueHandlerBuilder()
+        return builder.setNifiProperties(properties).build()
     }
 }

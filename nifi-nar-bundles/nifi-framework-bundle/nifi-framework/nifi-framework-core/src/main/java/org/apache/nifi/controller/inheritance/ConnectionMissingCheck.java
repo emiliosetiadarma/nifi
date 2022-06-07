@@ -25,6 +25,7 @@ import org.apache.nifi.controller.repository.FlowFileRepository;
 import org.apache.nifi.controller.serialization.FlowEncodingVersion;
 import org.apache.nifi.controller.serialization.FlowFromDOMFactory;
 import org.apache.nifi.controller.serialization.FlowSynchronizationException;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.ComponentType;
 import org.apache.nifi.flow.VersionedComponent;
 import org.apache.nifi.registry.flow.diff.DifferenceType;
@@ -116,7 +117,7 @@ public class ConnectionMissingCheck implements FlowInheritabilityCheck {
         final Element rootGroupElement = (Element) flowDocument.getDocumentElement().getElementsByTagName("rootGroup").item(0);
         final FlowEncodingVersion encodingVersion = FlowEncodingVersion.parse(flowDocument.getDocumentElement());
 
-        final ProcessGroupDTO rootGroupDto = FlowFromDOMFactory.getProcessGroup(null, rootGroupElement, null, encodingVersion);
+        final ProcessGroupDTO rootGroupDto = FlowFromDOMFactory.getProcessGroup(null, rootGroupElement, (PropertyValueHandler) null, encodingVersion);
         final Set<String> connectionIds = findAllConnectionIds(rootGroupDto);
 
         final FlowFileRepository flowFileRepository = flowController.getRepositoryContextFactory().getFlowFileRepository();

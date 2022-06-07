@@ -16,8 +16,11 @@
  */
 package org.apache.nifi.controller.serialization
 
+import org.apache.commons.codec.binary.Hex
 import org.apache.nifi.encrypt.EncryptionException
 import org.apache.nifi.encrypt.PropertyEncryptor
+import org.apache.nifi.encrypt.PropertyValueHandler
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
 import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,13 +44,14 @@ class FlowFromDOMFactoryTest {
     @Test
     void testShouldDecryptSensitiveFlowValue() throws Exception {
         // Arrange
-        final String property = "property"
+        final String property = Hex.encodeHexString("property".getBytes())
         String wrappedProperty = "enc{${property}}"
 
         PropertyEncryptor flowEncryptor = createEncryptor()
+        PropertyValueHandler flowHandler = new PropertyValueHandlerBuilder().setEncryptor(flowEncryptor).build();
 
         // Act
-        String recovered = FlowFromDOMFactory.decrypt(wrappedProperty, flowEncryptor)
+        String recovered = FlowFromDOMFactory.decrypt(wrappedProperty, flowHandler)
         logger.info("Recovered: ${recovered}")
 
         // Assert
@@ -57,14 +61,15 @@ class FlowFromDOMFactoryTest {
     @Test
     void testShouldProvideBetterErrorMessageOnDecryptionFailure() throws Exception {
         // Arrange
-        final String property = "property"
+        final String property = Hex.encodeHexString("property".getBytes())
         String wrappedProperty = "enc{${property}}"
 
         PropertyEncryptor flowEncryptor = createExceptionEncryptor()
+        PropertyValueHandler flowHandler = new PropertyValueHandlerBuilder().setEncryptor(flowEncryptor).build();
 
         // Act
         def msg = shouldFail(EncryptionException) {
-            String recovered = FlowFromDOMFactory.decrypt(wrappedProperty, flowEncryptor)
+            String recovered = FlowFromDOMFactory.decrypt(wrappedProperty, flowHandler)
             logger.info("Recovered: ${recovered}")
         }
         logger.expected(msg)

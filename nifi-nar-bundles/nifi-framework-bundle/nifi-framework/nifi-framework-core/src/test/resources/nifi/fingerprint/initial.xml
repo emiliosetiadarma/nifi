@@ -61,7 +61,7 @@
             </property>
             <property>
                 <name>Password</name>
-                <value>enc{drowssaPtxetnialPlanigiro}</value>
+                <value>enc{0123456789abcdeffedcba9876543210}</value>
             </property>
             <property>
                 <name>Connection Mode</name>

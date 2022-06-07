@@ -29,6 +29,8 @@ import org.apache.nifi.controller.PropertyConfiguration;
 import org.apache.nifi.controller.ScheduledState;
 import org.apache.nifi.controller.service.ControllerServiceNode;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
+import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.VersionedProcessor;
 import org.apache.nifi.logging.LogLevel;
 import org.apache.nifi.nar.ExtensionManager;
@@ -56,7 +58,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestNiFiRegistryFlowMapper {
-    private static final SensitiveValueEncryptor ENCRYPTOR = value -> new StringBuilder(value).reverse().toString();
+    private static final PropertyValueHandler HANDLER = new PassthroughPropertyValueHandler() {
+        @Override
+        public String encode(String value) {
+            return String.format(super.getFormat(), new StringBuilder(value).reverse());
+        }
+    };
 
     @Test
     public void testMappingProcessorWithSensitiveValuesGivesNullValue() {
@@ -107,7 +114,7 @@ public class TestNiFiRegistryFlowMapper {
             .stateLookup(VersionedComponentStateLookup.IDENTITY_LOOKUP)
             .componentIdLookup(ComponentIdLookup.USE_COMPONENT_ID)
             .mapSensitiveConfiguration(true)
-            .sensitiveValueEncryptor(ENCRYPTOR)
+            .propertyValueHandler(HANDLER)
             .build();
 
         final NiFiRegistryFlowMapper mapper = new NiFiRegistryFlowMapper(extensionManager, mappingOptions);

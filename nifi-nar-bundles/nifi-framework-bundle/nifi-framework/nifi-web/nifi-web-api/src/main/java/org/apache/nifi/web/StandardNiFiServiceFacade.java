@@ -96,6 +96,8 @@ import org.apache.nifi.controller.status.ProcessorStatus;
 import org.apache.nifi.controller.status.analytics.StatusAnalytics;
 import org.apache.nifi.controller.status.history.ProcessGroupStatusDescriptor;
 import org.apache.nifi.diagnostics.SystemDiagnostics;
+import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.events.BulletinFactory;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flow.ExternalControllerServiceReference;
@@ -4871,8 +4873,9 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
         final ComparableDataFlow registryFlow = new StandardComparableDataFlow("Versioned Flow", registryGroup);
 
         final Set<String> ancestorServiceIds = processGroup.getAncestorServiceIds();
-        final FlowComparator flowComparator = new StandardFlowComparator(registryFlow, localFlow, ancestorServiceIds, new ConciseEvolvingDifferenceDescriptor(),
-            Function.identity(), VersionedComponent::getIdentifier);
+        final PropertyValueHandler handler = new PassthroughPropertyValueHandler();
+        final FlowComparator flowComparator = new StandardFlowComparator(registryFlow, localFlow, ancestorServiceIds,
+                new ConciseEvolvingDifferenceDescriptor(), handler, VersionedComponent::getIdentifier);
         final FlowComparison flowComparison = flowComparator.compare();
 
         final Set<ComponentDifferenceDTO> differenceDtos = dtoFactory.createComponentDifferenceDtosForLocalModifications(flowComparison, localGroup, controllerFacade.getFlowManager());
@@ -4984,8 +4987,9 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
         final ComparableDataFlow proposedFlow = new StandardComparableDataFlow("New Flow", updatedSnapshot.getFlowContents());
 
         final Set<String> ancestorServiceIds = group.getAncestorServiceIds();
-        final FlowComparator flowComparator = new StandardFlowComparator(localFlow, proposedFlow, ancestorServiceIds, new StaticDifferenceDescriptor(),
-            Function.identity(), VersionedComponent::getIdentifier);
+        final PropertyValueHandler handler = new PassthroughPropertyValueHandler();
+        final FlowComparator flowComparator = new StandardFlowComparator(localFlow, proposedFlow, ancestorServiceIds,
+                new StaticDifferenceDescriptor(), handler, VersionedComponent::getIdentifier);
         final FlowComparison comparison = flowComparator.compare();
 
         final FlowManager flowManager = controllerFacade.getFlowManager();

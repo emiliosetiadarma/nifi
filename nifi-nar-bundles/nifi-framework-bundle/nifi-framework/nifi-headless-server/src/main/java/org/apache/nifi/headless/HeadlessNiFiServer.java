@@ -42,8 +42,8 @@ import org.apache.nifi.diagnostics.DiagnosticsDumpElement;
 import org.apache.nifi.diagnostics.DiagnosticsFactory;
 import org.apache.nifi.diagnostics.ThreadDumpTask;
 import org.apache.nifi.diagnostics.bootstrap.BootstrapDiagnosticsFactory;
-import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
 import org.apache.nifi.events.VolatileBulletinRepository;
 import org.apache.nifi.nar.ExtensionDiscoveringManager;
 import org.apache.nifi.nar.ExtensionManagerHolder;
@@ -128,7 +128,7 @@ public class HeadlessNiFiServer implements NiFiServer {
                 }
             };
 
-            PropertyEncryptor encryptor = PropertyEncryptorFactory.getPropertyEncryptor(props);
+            PropertyValueHandler handler = PropertyValueHandlerFactory.getPropertyValueHandler(props);
             VariableRegistry variableRegistry = new FileBasedVariableRegistry(props.getVariableRegistryPropertiesPaths());
             BulletinRepository bulletinRepository = new VolatileBulletinRepository();
             StandardFlowRegistryClient flowRegistryClient = new StandardFlowRegistryClient();
@@ -144,7 +144,7 @@ public class HeadlessNiFiServer implements NiFiServer {
                     props,
                     authorizer,
                     auditService,
-                    encryptor,
+                    handler,
                     bulletinRepository,
                     variableRegistry,
                     flowRegistryClient,
@@ -154,7 +154,7 @@ public class HeadlessNiFiServer implements NiFiServer {
             flowService = StandardFlowService.createStandaloneInstance(
                     flowController,
                     props,
-                    encryptor,
+                    handler,
                     null, // revision manager
                     authorizer,
                     FlowSerializationStrategy.WRITE_XML_ONLY);

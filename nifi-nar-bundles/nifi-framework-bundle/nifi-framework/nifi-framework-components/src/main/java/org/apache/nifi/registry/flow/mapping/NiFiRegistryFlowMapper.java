@@ -36,6 +36,7 @@ import org.apache.nifi.controller.label.Label;
 import org.apache.nifi.controller.queue.FlowFileQueue;
 import org.apache.nifi.controller.service.ControllerServiceNode;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.BatchSize;
 import org.apache.nifi.flow.Bundle;
 import org.apache.nifi.flow.ComponentType;
@@ -95,9 +96,6 @@ import java.util.stream.Collectors;
 
 
 public class NiFiRegistryFlowMapper {
-    private static final String ENCRYPTED_PREFIX = "enc{";
-    private static final String ENCRYPTED_SUFFIX = "}";
-
     private final ExtensionManager extensionManager;
     private final FlowMappingOptions flowMappingOptions;
 
@@ -487,14 +485,13 @@ public class NiFiRegistryFlowMapper {
             return null;
         }
 
-        final SensitiveValueEncryptor encryptor = flowMappingOptions.getSensitiveValueEncryptor();
-        if (encryptor == null) {
+        final PropertyValueHandler handler = flowMappingOptions.getHandler();
+        if (handler == null) {
             // This will happen only if the given property is mappable, which means that it is a parameter reference.
             return value;
         }
 
-        final String encrypted = encryptor.encrypt(value);
-        return ENCRYPTED_PREFIX + encrypted + ENCRYPTED_SUFFIX;
+        return handler.encode(value);
     }
 
     private boolean isMappable(final PropertyDescriptor propertyDescriptor, final PropertyConfiguration propertyConfiguration) {

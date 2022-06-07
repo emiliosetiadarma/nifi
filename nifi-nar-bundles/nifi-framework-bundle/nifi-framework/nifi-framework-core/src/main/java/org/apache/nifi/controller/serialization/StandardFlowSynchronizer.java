@@ -22,7 +22,7 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.MissingBundleException;
 import org.apache.nifi.controller.UninheritableFlowException;
 import org.apache.nifi.controller.XmlFlowSynchronizer;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.groups.BundleUpdateStrategy;
 import org.apache.nifi.services.FlowService;
 
@@ -36,11 +36,11 @@ public class StandardFlowSynchronizer implements FlowSynchronizer {
     }
 
     @Override
-    public void sync(final FlowController controller, final DataFlow dataFlow, final PropertyEncryptor encryptor, final FlowService flowService, final BundleUpdateStrategy bundleUpdateStrategy)
-        throws FlowSerializationException, UninheritableFlowException, FlowSynchronizationException, MissingBundleException {
+    public void sync(final FlowController controller, final DataFlow dataFlow, final PropertyValueHandler handler, final FlowService flowService, final BundleUpdateStrategy bundleUpdateStrategy)
+            throws FlowSerializationException, UninheritableFlowException, FlowSynchronizationException, MissingBundleException {
 
         final FlowSynchronizer synchronizer = isXml(dataFlow) ? xmlFlowSynchronizer : versionedFlowSynchronizer;
-        synchronizer.sync(controller, dataFlow, encryptor, flowService, bundleUpdateStrategy);
+        synchronizer.sync(controller, dataFlow, handler, flowService, bundleUpdateStrategy);
     }
 
     public static boolean isFlowEmpty(final DataFlow dataFlow) {

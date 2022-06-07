@@ -31,7 +31,7 @@ import org.apache.nifi.controller.Template;
 import org.apache.nifi.controller.label.Label;
 import org.apache.nifi.controller.service.ControllerServiceNode;
 import org.apache.nifi.controller.service.ControllerServiceState;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flowfile.FlowFilePrioritizer;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.groups.RemoteProcessGroup;
@@ -77,10 +77,10 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
 
     private static final String MAX_ENCODING_VERSION = "1.4";
 
-    private final PropertyEncryptor encryptor;
+    private static PropertyValueHandler handler;
 
-    public StandardFlowSerializer(final PropertyEncryptor encryptor) {
-        this.encryptor = encryptor;
+    public StandardFlowSerializer(final PropertyValueHandler handler) {
+        this.handler = handler;
     }
 
 
@@ -119,7 +119,7 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
             final Element reportingTasksNode = doc.createElement("reportingTasks");
             rootNode.appendChild(reportingTasksNode);
             for (final ReportingTaskNode taskNode : controller.getAllReportingTasks()) {
-                addReportingTask(reportingTasksNode, taskNode, encryptor);
+                addReportingTask(reportingTasksNode, taskNode, handler);
             }
 
             return doc;
@@ -177,7 +177,7 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
         if (parameter.getValue() != null) {
             if (descriptor.isSensitive()) {
                 final String parameterValue = parameter.getValue();
-                addStringElement(parameterElement, "value", parameterValue == null ? null : ENC_PREFIX + encryptor.encrypt(parameterValue) + ENC_SUFFIX);
+                addStringElement(parameterElement, "value", parameterValue == null ? null : handler.encode(parameterValue));
             } else {
                 addStringElement(parameterElement, "value", parameter.getValue());
             }
@@ -397,7 +397,7 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
         }
         addTextElement(element, "proxyUser", remoteRef.getProxyUser());
         if (!StringUtils.isEmpty(remoteRef.getProxyPassword())) {
-            final String value = ENC_PREFIX + encryptor.encrypt(remoteRef.getProxyPassword()) + ENC_SUFFIX;
+            final String value = handler.encode(remoteRef.getProxyPassword());
             addTextElement(element, "proxyPassword", value);
         }
         if (remoteRef.getNetworkInterface() != null) {
@@ -518,14 +518,14 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
             addTextElement(element, "retriedRelationship", relationship);
         }
 
-        addConfiguration(element, processor.getRawPropertyValues(), processor.getAnnotationData(), encryptor);
+        addConfiguration(element, processor.getRawPropertyValues(), processor.getAnnotationData(), handler);
 
         for (final Relationship rel : processor.getAutoTerminatedRelationships()) {
             addTextElement(element, "autoTerminatedRelationship", rel.getName());
         }
     }
 
-    private static void addConfiguration(final Element element, final Map<PropertyDescriptor, String> properties, final String annotationData, final PropertyEncryptor encryptor) {
+    private static void addConfiguration(final Element element, final Map<PropertyDescriptor, String> properties, final String annotationData, final PropertyValueHandler handler) {
         final Document doc = element.getOwnerDocument();
         for (final Map.Entry<PropertyDescriptor, String> entry : properties.entrySet()) {
             final PropertyDescriptor descriptor = entry.getKey();
@@ -536,7 +536,7 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
             }
 
             if (value != null && descriptor.isSensitive()) {
-                value = ENC_PREFIX + encryptor.encrypt(value) + ENC_SUFFIX;
+                value = handler.encode(value);
             }
 
             final Element propElement = doc.createElement("property");
@@ -630,12 +630,12 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
         final boolean enabled = (state == ControllerServiceState.ENABLED || state == ControllerServiceState.ENABLING);
         addTextElement(serviceElement, "enabled", String.valueOf(enabled));
 
-        addConfiguration(serviceElement, serviceNode.getRawPropertyValues(), serviceNode.getAnnotationData(), encryptor);
+        addConfiguration(serviceElement, serviceNode.getRawPropertyValues(), serviceNode.getAnnotationData(), handler);
 
         element.appendChild(serviceElement);
     }
 
-    public static void addReportingTask(final Element element, final ReportingTaskNode taskNode, final PropertyEncryptor encryptor) {
+    public static void addReportingTask(final Element element, final ReportingTaskNode taskNode, final PropertyValueHandler handler) {
         final Element taskElement = element.getOwnerDocument().createElement("reportingTask");
         addTextElement(taskElement, "id", taskNode.getIdentifier());
         addTextElement(taskElement, "name", taskNode.getName());
@@ -648,7 +648,7 @@ public class StandardFlowSerializer implements FlowSerializer<Document> {
         addTextElement(taskElement, "scheduledState", taskNode.getScheduledState().name());
         addTextElement(taskElement, "schedulingStrategy", taskNode.getSchedulingStrategy().name());
 
-        addConfiguration(taskElement, taskNode.getRawPropertyValues(), taskNode.getAnnotationData(), encryptor);
+        addConfiguration(taskElement, taskNode.getRawPropertyValues(), taskNode.getAnnotationData(), handler);
 
         element.appendChild(taskElement);
     }

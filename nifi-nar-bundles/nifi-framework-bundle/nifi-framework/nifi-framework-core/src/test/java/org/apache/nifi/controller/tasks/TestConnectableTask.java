@@ -32,7 +32,7 @@ import org.apache.nifi.controller.scheduling.LifecycleState;
 import org.apache.nifi.controller.scheduling.RepositoryContextFactory;
 import org.apache.nifi.controller.scheduling.SchedulingAgent;
 import org.apache.nifi.controller.status.FlowFileAvailability;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.processor.Processor;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -61,10 +61,10 @@ public class TestConnectableTask {
         Mockito.when(contextFactory.newProcessContext(Mockito.any(Connectable.class), Mockito.any(AtomicLong.class))).thenReturn(repoContext);
 
         final LifecycleState scheduleState = new LifecycleState();
-        final PropertyEncryptor encryptor = Mockito.mock(PropertyEncryptor.class);
+        final PropertyValueHandler handler = Mockito.mock(PropertyValueHandler.class);
 
         return new ConnectableTask(Mockito.mock(SchedulingAgent.class), connectable,
-                flowController, contextFactory, scheduleState, encryptor);
+                flowController, contextFactory, scheduleState, handler);
     }
 
     @Test

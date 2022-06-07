@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.flow.VersionedDataflow;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.nar.ExtensionManager;
 
 import java.io.IOException;
@@ -33,7 +33,8 @@ import java.io.OutputStream;
 
 public class VersionedFlowSerializer implements FlowSerializer<VersionedDataflow> {
     private static final ObjectMapper JSON_CODEC = new ObjectMapper();
-    private final PropertyEncryptor propertyEncryptor;
+    private final PropertyValueHandler handler;
+
     private final ExtensionManager extensionManager;
 
     static {
@@ -43,14 +44,14 @@ public class VersionedFlowSerializer implements FlowSerializer<VersionedDataflow
         JSON_CODEC.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    public VersionedFlowSerializer(final PropertyEncryptor propertyEncryptor, final ExtensionManager extensionManager) {
-        this.propertyEncryptor = propertyEncryptor;
+    public VersionedFlowSerializer(final PropertyValueHandler handler, final ExtensionManager extensionManager) {
+        this.handler = handler;
         this.extensionManager = extensionManager;
     }
 
     @Override
     public VersionedDataflow transform(final FlowController controller, final ScheduledStateLookup stateLookup) throws FlowSerializationException {
-        final VersionedDataflowMapper dataflowMapper = new VersionedDataflowMapper(controller, extensionManager, propertyEncryptor::encrypt, stateLookup);
+        final VersionedDataflowMapper dataflowMapper = new VersionedDataflowMapper(controller, extensionManager, handler, stateLookup);
         final VersionedDataflow dataflow = dataflowMapper.createMapping();
         return dataflow;
     }

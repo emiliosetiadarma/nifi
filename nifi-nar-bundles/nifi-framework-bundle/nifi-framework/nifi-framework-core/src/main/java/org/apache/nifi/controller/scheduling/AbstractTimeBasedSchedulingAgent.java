@@ -19,7 +19,7 @@ package org.apache.nifi.controller.scheduling;
 import org.apache.nifi.connectable.Connectable;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.tasks.ConnectableTask;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.engine.FlowEngine;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.util.FormatUtils;
@@ -38,26 +38,26 @@ public abstract class AbstractTimeBasedSchedulingAgent extends AbstractSchedulin
 
     protected final FlowController flowController;
     protected final RepositoryContextFactory contextFactory;
-    protected final PropertyEncryptor encryptor;
+    protected final PropertyValueHandler handler;
 
     protected volatile String adminYieldDuration = "1 sec";
 
     public AbstractTimeBasedSchedulingAgent(
-        final FlowEngine flowEngine,
-        final FlowController flowController,
-        final RepositoryContextFactory contextFactory,
-        final PropertyEncryptor encryptor
+            final FlowEngine flowEngine,
+            final FlowController flowController,
+            final RepositoryContextFactory contextFactory,
+            final PropertyValueHandler handler
     ) {
         super(flowEngine);
         this.flowController = flowController;
         this.contextFactory = contextFactory;
-        this.encryptor = encryptor;
+        this.handler = handler;
     }
 
     @Override
     public void doScheduleOnce(final Connectable connectable, final LifecycleState scheduleState, Callable<Future<Void>> stopCallback) {
         final List<ScheduledFuture<?>> futures = new ArrayList<>();
-        final ConnectableTask connectableTask = new ConnectableTask(this, connectable, flowController, contextFactory, scheduleState, encryptor);
+        final ConnectableTask connectableTask = new ConnectableTask(this, connectable, flowController, contextFactory, scheduleState, handler);
 
         final Runnable trigger = () -> {
             connectableTask.invoke();

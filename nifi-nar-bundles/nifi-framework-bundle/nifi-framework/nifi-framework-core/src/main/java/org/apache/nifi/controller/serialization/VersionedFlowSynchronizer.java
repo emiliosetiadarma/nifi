@@ -49,7 +49,7 @@ import org.apache.nifi.controller.inheritance.FlowInheritabilityCheck;
 import org.apache.nifi.controller.reporting.ReportingTaskInstantiationException;
 import org.apache.nifi.controller.service.ControllerServiceNode;
 import org.apache.nifi.encrypt.EncryptionException;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.Bundle;
 import org.apache.nifi.flow.ScheduledState;
 import org.apache.nifi.flow.VersionedComponent;
@@ -121,25 +121,23 @@ import java.util.zip.GZIPInputStream;
 
 public class VersionedFlowSynchronizer implements FlowSynchronizer {
     private static final Logger logger = LoggerFactory.getLogger(VersionedFlowSynchronizer.class);
-    private static final String ENCRYPTED_VALUE_PREFIX = "enc{";
-    private static final String ENCRYPTED_VALUE_SUFFIX = "}";
 
-    private final PropertyEncryptor encryptor;
+    private final PropertyValueHandler handler;
     private final ExtensionManager extensionManager;
     private final File flowStorageFile;
     private final FlowConfigurationArchiveManager archiveManager;
 
-    public VersionedFlowSynchronizer(final PropertyEncryptor encryptor, final ExtensionManager extensionManager, final File flowStorageFile, final FlowConfigurationArchiveManager archiveManager) {
-        this.encryptor = encryptor;
+    public VersionedFlowSynchronizer(final PropertyValueHandler handler, final ExtensionManager extensionManager, final File flowStorageFile, final FlowConfigurationArchiveManager archiveManager) {
+        this.handler = handler;
         this.extensionManager = extensionManager;
         this.flowStorageFile = flowStorageFile;
         this.archiveManager = archiveManager;
     }
 
-
-    public synchronized void sync(final FlowController controller, final DataFlow proposedFlow, final PropertyEncryptor encryptor, final FlowService flowService,
+    @Override
+    public synchronized void sync(final FlowController controller, final DataFlow proposedFlow, final PropertyValueHandler handler, final FlowService flowService,
                                   final BundleUpdateStrategy bundleUpdateStrategy)
-                    throws FlowSerializationException, UninheritableFlowException, FlowSynchronizationException, MissingBundleException {
+            throws FlowSerializationException, UninheritableFlowException, FlowSynchronizationException, MissingBundleException {
 
         final long start = System.currentTimeMillis();
         final FlowManager flowManager = controller.getFlowManager();
@@ -168,7 +166,7 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
         final DataFlow existingDataFlow = getExistingDataFlow(controller);
         checkFlowInheritability(existingDataFlow, proposedFlow, controller, bundleUpdateStrategy);
 
-        final FlowComparison flowComparison = compareFlows(existingDataFlow, proposedFlow, encryptor);
+        final FlowComparison flowComparison = compareFlows(existingDataFlow, proposedFlow, handler);
         final Set<FlowDifference> flowDifferences = flowComparison.getDifferences();
         if (flowDifferences.isEmpty()) {
             logger.debug("No differences between current flow and proposed flow. Will not create backup of existing flow.");
@@ -204,6 +202,7 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
         final long millis = System.currentTimeMillis() - start;
         logger.info("Successfully synchronized dataflow with the proposed flow in {} millis", millis);
     }
+
 
     private void verifyNoConnectionsWithDataRemoved(final DataFlow existingFlow, final DataFlow proposedFlow, final FlowController controller, final FlowComparison flowComparison) {
         logger.debug("Checking that no connections were removed that have data");
@@ -349,14 +348,14 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
                     .updateGroupVersionControlSnapshot(false)
                     .updateExistingVariables(true)
                     .updateRpgUrls(true)
-                    .propertyDecryptor(encryptor::decrypt)
+                    .propertyValueHandler(handler)
                     .build();
 
                 final FlowMappingOptions flowMappingOptions = new FlowMappingOptions.Builder()
                     .mapSensitiveConfiguration(true)
                     .mapPropertyDescriptors(false)
                     .stateLookup(stateLookup)
-                    .sensitiveValueEncryptor(encryptor::encrypt)
+                    .propertyValueHandler(handler)
                     .componentIdLookup(ComponentIdLookup.VERSIONED_OR_GENERATE)
                     .mapInstanceIdentifiers(true)
                     .mapControllerServiceReferencesToVersionedId(false)
@@ -375,19 +374,19 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
         }
     }
 
-    private FlowComparison compareFlows(final DataFlow existingFlow, final DataFlow proposedFlow, final PropertyEncryptor encryptor) {
+    private FlowComparison compareFlows(final DataFlow existingFlow, final DataFlow proposedFlow, final PropertyValueHandler handler) {
         final DifferenceDescriptor differenceDescriptor = new StaticDifferenceDescriptor();
 
         final VersionedDataflow existingVersionedFlow = existingFlow.getVersionedDataflow() == null ? createEmptyVersionedDataflow() : existingFlow.getVersionedDataflow();
         final ComparableDataFlow localDataFlow = new StandardComparableDataFlow("Local Flow", existingVersionedFlow.getRootGroup(), toSet(existingVersionedFlow.getControllerServices()),
-            toSet(existingVersionedFlow.getReportingTasks()), toSet(existingVersionedFlow.getParameterContexts()));
+                toSet(existingVersionedFlow.getReportingTasks()), toSet(existingVersionedFlow.getParameterContexts()));
 
         final VersionedDataflow clusterVersionedFlow = proposedFlow.getVersionedDataflow();
         final ComparableDataFlow clusterDataFlow = new StandardComparableDataFlow("Cluster Flow", clusterVersionedFlow.getRootGroup(), toSet(clusterVersionedFlow.getControllerServices()),
-            toSet(clusterVersionedFlow.getReportingTasks()), toSet(clusterVersionedFlow.getParameterContexts()));
+                toSet(clusterVersionedFlow.getReportingTasks()), toSet(clusterVersionedFlow.getParameterContexts()));
 
         final FlowComparator flowComparator = new StandardFlowComparator(localDataFlow, clusterDataFlow, Collections.emptySet(),
-            differenceDescriptor, encryptor::decrypt, VersionedComponent::getInstanceIdentifier);
+                differenceDescriptor, handler, VersionedComponent::getInstanceIdentifier);
         return flowComparator.compare();
     }
 
@@ -619,9 +618,8 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
             final String rawValue = versioned.getValue();
             if (rawValue == null) {
                 parameterValue = null;
-            } else if (versioned.isSensitive() && rawValue.startsWith(ENCRYPTED_VALUE_PREFIX) && rawValue.endsWith(ENCRYPTED_VALUE_SUFFIX)) {
-                final String extractedValue = rawValue.substring(ENCRYPTED_VALUE_PREFIX.length(), rawValue.length() - ENCRYPTED_VALUE_SUFFIX.length());
-                parameterValue = encryptor.decrypt(extractedValue);
+            } else if (versioned.isSensitive() && handler.isEncoded(rawValue)) {
+                parameterValue = handler.decode(rawValue);
             } else {
                 parameterValue = rawValue;
             }
@@ -796,7 +794,7 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
     private String decrypt(final String value) {
         if (isValueSensitive(value)) {
             try {
-                return encryptor.decrypt(value.substring(FlowSerializer.ENC_PREFIX.length(), value.length() - FlowSerializer.ENC_SUFFIX.length()));
+                return handler.decode(value);
             } catch (EncryptionException e) {
                 final String moreDescriptiveMessage = "There was a problem decrypting a sensitive flow configuration value. " +
                     "Check that the nifi.sensitive.props.key value in nifi.properties matches the value used to encrypt the flow.json.gz file";
@@ -809,7 +807,7 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
     }
 
     private boolean isValueSensitive(final String value) {
-        return value != null && value.startsWith(FlowSerializer.ENC_PREFIX) && value.endsWith(FlowSerializer.ENC_SUFFIX);
+        return value != null && handler.isEncoded(value);
     }
 
     private BundleCoordinate createBundleCoordinate(final Bundle bundle, final String componentType) {
@@ -1003,7 +1001,7 @@ public class VersionedFlowSynchronizer implements FlowSynchronizer {
 
     private byte[] toBytes(final FlowController flowController) throws FlowSerializationException {
         final ByteArrayOutputStream result = new ByteArrayOutputStream();
-        final FlowSerializer<VersionedDataflow> flowSerializer = new VersionedFlowSerializer(encryptor, extensionManager);
+        final FlowSerializer<VersionedDataflow> flowSerializer = new VersionedFlowSerializer(handler, extensionManager);
         flowController.serialize(flowSerializer, result);
         return result.toByteArray();
     }

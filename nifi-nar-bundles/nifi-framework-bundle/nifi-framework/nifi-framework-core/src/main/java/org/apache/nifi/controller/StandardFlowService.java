@@ -54,7 +54,7 @@ import org.apache.nifi.controller.serialization.FlowSerializationException;
 import org.apache.nifi.controller.serialization.FlowSynchronizationException;
 import org.apache.nifi.controller.serialization.StandardFlowSynchronizer;
 import org.apache.nifi.controller.status.ProcessGroupStatus;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.engine.FlowEngine;
 import org.apache.nifi.events.BulletinFactory;
 import org.apache.nifi.groups.BundleUpdateStrategy;
@@ -78,6 +78,7 @@ import org.apache.nifi.web.revision.RevisionSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.HEAD;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -157,12 +158,12 @@ public class StandardFlowService implements FlowService, ProtocolHandler {
     public static StandardFlowService createStandaloneInstance(
             final FlowController controller,
             final NiFiProperties nifiProperties,
-            final PropertyEncryptor encryptor,
+            final PropertyValueHandler handler,
             final RevisionManager revisionManager,
             final Authorizer authorizer,
             final FlowSerializationStrategy serializationStrategy) throws IOException {
 
-        return new StandardFlowService(controller, nifiProperties, null, encryptor, false, null, revisionManager, authorizer,
+        return new StandardFlowService(controller, nifiProperties, null, handler,false, null, revisionManager, authorizer,
                 serializationStrategy);
     }
 
@@ -171,11 +172,11 @@ public class StandardFlowService implements FlowService, ProtocolHandler {
             final NiFiProperties nifiProperties,
             final NodeProtocolSenderListener senderListener,
             final ClusterCoordinator coordinator,
-            final PropertyEncryptor encryptor,
+            final PropertyValueHandler handler,
             final RevisionManager revisionManager,
             final Authorizer authorizer) throws IOException {
 
-        return new StandardFlowService(controller, nifiProperties, senderListener, encryptor, true, coordinator, revisionManager, authorizer,
+        return new StandardFlowService(controller, nifiProperties, senderListener, handler, true, coordinator, revisionManager, authorizer,
                 FlowSerializationStrategy.WRITE_XML_AND_JSON);
     }
 
@@ -183,7 +184,7 @@ public class StandardFlowService implements FlowService, ProtocolHandler {
             final FlowController controller,
             final NiFiProperties nifiProperties,
             final NodeProtocolSenderListener senderListener,
-            final PropertyEncryptor encryptor,
+            final PropertyValueHandler handler,
             final boolean configuredForClustering,
             final ClusterCoordinator clusterCoordinator,
             final RevisionManager revisionManager,
@@ -196,7 +197,7 @@ public class StandardFlowService implements FlowService, ProtocolHandler {
         gracefulShutdownSeconds = (int) FormatUtils.getTimeDuration(nifiProperties.getProperty(NiFiProperties.FLOW_CONTROLLER_GRACEFUL_SHUTDOWN_PERIOD), TimeUnit.SECONDS);
         autoResumeState = nifiProperties.getAutoResumeState();
 
-        dao = new StandardFlowConfigurationDAO(encryptor, nifiProperties, controller.getExtensionManager(), serializationStrategy);
+        dao = new StandardFlowConfigurationDAO(handler, nifiProperties, controller.getExtensionManager(), serializationStrategy);
         this.clusterCoordinator = clusterCoordinator;
         if (clusterCoordinator != null) {
             clusterCoordinator.setFlowService(this);

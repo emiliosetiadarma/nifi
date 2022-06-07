@@ -22,7 +22,7 @@ import org.apache.nifi.cluster.protocol.impl.NodeProtocolSenderListener;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.FlowSerializationStrategy;
 import org.apache.nifi.controller.StandardFlowService;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.services.FlowService;
 import org.apache.nifi.util.NiFiProperties;
 import org.apache.nifi.web.revision.RevisionManager;
@@ -40,7 +40,7 @@ public class StandardFlowServiceFactoryBean implements FactoryBean, ApplicationC
     private ApplicationContext applicationContext;
     private FlowService flowService;
     private NiFiProperties properties;
-    private PropertyEncryptor encryptor;
+    private PropertyValueHandler handler;
     private Authorizer authorizer;
 
     @Override
@@ -57,14 +57,14 @@ public class StandardFlowServiceFactoryBean implements FactoryBean, ApplicationC
                     properties,
                     nodeProtocolSenderListener,
                     clusterCoordinator,
-                    encryptor,
+                    handler,
                     revisionManager,
                     authorizer);
             } else {
                 flowService = StandardFlowService.createStandaloneInstance(
                     flowController,
                     properties,
-                    encryptor,
+                    handler,
                     revisionManager,
                     authorizer,
                     FlowSerializationStrategy.WRITE_XML_AND_JSON);
@@ -93,8 +93,8 @@ public class StandardFlowServiceFactoryBean implements FactoryBean, ApplicationC
         this.properties = properties;
     }
 
-    public void setEncryptor(PropertyEncryptor encryptor) {
-        this.encryptor = encryptor;
+    public void setHandler(PropertyValueHandler handler) {
+        this.handler = handler;
     }
 
     public void setAuthorizer(Authorizer authorizer) {

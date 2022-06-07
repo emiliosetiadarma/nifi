@@ -45,8 +45,9 @@ import org.apache.nifi.controller.service.mock.DummyReportingTask;
 import org.apache.nifi.controller.service.mock.ServiceA;
 import org.apache.nifi.controller.service.mock.ServiceB;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
+import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
 import org.apache.nifi.groups.BundleUpdateStrategy;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.logging.LogLevel;
@@ -118,7 +119,7 @@ public class TestFlowController {
     private AbstractPolicyBasedAuthorizer authorizer;
     private FlowFileEventRepository flowFileEventRepo;
     private AuditService auditService;
-    private PropertyEncryptor encryptor;
+    private PropertyValueHandler handler;
     private NiFiProperties nifiProperties;
     private Bundle systemBundle;
     private BulletinRepository bulletinRepo;
@@ -137,7 +138,7 @@ public class TestFlowController {
         otherProps.put("nifi.remote.input.secure", "");
         final String propsFile = "src/test/resources/flowcontrollertest.nifi.properties";
         nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
-        encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
+        handler = new PropertyValueHandlerBuilder().setNifiProperties(nifiProperties).build();
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);
@@ -187,7 +188,7 @@ public class TestFlowController {
 
         bulletinRepo = mock(BulletinRepository.class);
         controller = FlowController.createStandaloneInstance(flowFileEventRepo, nifiProperties, authorizer,
-                auditService, encryptor, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
+                auditService, handler, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
     }
 
     @After
@@ -199,7 +200,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWithReportingTaskAndProcessorReferencingControllerService() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         // create a mock proposed data flow with the same auth fingerprint as the current authorizer
         final String authFingerprint = authorizer.getFingerprint();
@@ -261,7 +262,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWithProcessorReferencingControllerService() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         // create a mock proposed data flow with the same auth fingerprint as the current authorizer
         final String authFingerprint = authorizer.getFingerprint();
@@ -303,7 +304,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenAuthorizationsAreEqual() {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         // create a mock proposed data flow with the same auth fingerprint as the current authorizer
         final String authFingerprint = authorizer.getFingerprint();
@@ -318,7 +319,7 @@ public class TestFlowController {
     @Test(expected = UninheritableFlowException.class)
     public void testSynchronizeFlowWhenAuthorizationsAreDifferent() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final File flowFile = new File("src/test/resources/conf/processor-with-cs-flow-0.7.0.xml");
         final String flow = IOUtils.toString(new FileInputStream(flowFile), StandardCharsets.UTF_8);
@@ -340,7 +341,7 @@ public class TestFlowController {
     @Test(expected = FlowSynchronizationException.class)
     public void testSynchronizeFlowWithInvalidParameterContextReference() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final File flowFile = new File("src/test/resources/conf/parameter-context-flow-error.xml");
         final String flow = IOUtils.toString(new FileInputStream(flowFile), StandardCharsets.UTF_8);
@@ -359,7 +360,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWithNestedParameterContexts() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final File flowFile = new File("src/test/resources/conf/parameter-context-flow.xml");
         final String flow = IOUtils.toString(new FileInputStream(flowFile), StandardCharsets.UTF_8);
@@ -384,7 +385,7 @@ public class TestFlowController {
     @Test
     public void testCreateParameterContextWithAndWithoutValidation() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final File flowFile = new File("src/test/resources/conf/parameter-context-flow.xml");
         final String flow = IOUtils.toString(new FileInputStream(flowFile), StandardCharsets.UTF_8);
@@ -433,7 +434,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenAuthorizationsAreDifferentAndFlowEmpty() {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         // create a mock proposed data flow with different auth fingerprint as the current authorizer
         final String authFingerprint = "<authorizations></authorizations>";
@@ -451,7 +452,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenProposedAuthorizationsAreNull() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final File flowFile = new File("src/test/resources/conf/processor-with-cs-flow-0.7.0.xml");
         final String flow = IOUtils.toString(new FileInputStream(flowFile), StandardCharsets.UTF_8);
@@ -477,7 +478,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenProposedAuthorizationsAreNullAndEmptyFlow() {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final DataFlow proposedDataFlow = mock(DataFlow.class);
         when(proposedDataFlow.getAuthorizerFingerprint()).thenReturn(null);
@@ -509,7 +510,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenCurrentAuthorizationsAreEmptyAndProposedAreNot() {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         // create a mock proposed data flow with the same auth fingerprint as the current authorizer
         final String authFingerprint = authorizer.getFingerprint();
@@ -521,7 +522,7 @@ public class TestFlowController {
 
         controller.shutdown(true);
         controller = FlowController.createStandaloneInstance(flowFileEventRepo, nifiProperties, authorizer,
-            auditService, encryptor, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
+            auditService, handler, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
         controller.synchronize(standardFlowSynchronizer, proposedDataFlow, mock(FlowService.class), BundleUpdateStrategy.IGNORE_BUNDLE);
         assertEquals(authFingerprint, authorizer.getFingerprint());
     }
@@ -529,7 +530,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenProposedMissingComponentsAreDifferent() {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final Set<String> missingComponents = new HashSet<>();
         missingComponents.add("1");
@@ -548,8 +549,8 @@ public class TestFlowController {
 
     @Test
     public void testSynchronizeFlowWhenExistingMissingComponentsAreDifferent() throws IOException {
-        final PropertyEncryptor encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
-        final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(encryptor, nifiProperties, extensionManager);
+        handler = new PropertyValueHandlerBuilder().setNifiProperties(nifiProperties).build();
+        final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(handler, nifiProperties, extensionManager);
 
         final ProcessorNode mockProcessorNode = mock(ProcessorNode.class);
         when(mockProcessorNode.getIdentifier()).thenReturn("1");
@@ -584,7 +585,8 @@ public class TestFlowController {
         when(proposedDataFlow.getMissingComponents()).thenReturn(new HashSet<>());
 
         try {
-            standardFlowSynchronizer.sync(mockFlowController, proposedDataFlow, encryptor, mock(FlowService.class), BundleUpdateStrategy.IGNORE_BUNDLE);
+
+            standardFlowSynchronizer.sync(mockFlowController, proposedDataFlow, handler, mock(FlowService.class), BundleUpdateStrategy.IGNORE_BUNDLE);
             Assert.fail("Should have thrown exception");
         } catch (UninheritableFlowException e) {
             assertTrue(e.getMessage(), e.getMessage().contains("Current flow has missing components that are not considered missing in the proposed flow (1,2,3)"));
@@ -594,7 +596,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenBundlesAreSame() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final LogRepository logRepository = LogRepositoryFactory.getRepository("d89ada5d-35fb-44ff-83f1-4cc00b48b2df");
         logRepository.removeAllObservers();
@@ -606,7 +608,7 @@ public class TestFlowController {
     @Test
     public void testSynchronizeFlowWhenBundlesAreDifferent() throws IOException {
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(
-                PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties), nifiProperties, extensionManager);
+                PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties), nifiProperties, extensionManager);
 
         final LogRepository logRepository = LogRepositoryFactory.getRepository("d89ada5d-35fb-44ff-83f1-4cc00b48b2df");
         logRepository.removeAllObservers();

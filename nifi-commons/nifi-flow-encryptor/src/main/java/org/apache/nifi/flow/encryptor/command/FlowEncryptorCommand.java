@@ -16,8 +16,8 @@
  */
 package org.apache.nifi.flow.encryptor.command;
 
-import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyEncryptorBuilder;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
 import org.apache.nifi.flow.encryptor.FlowEncryptor;
 import org.apache.nifi.flow.encryptor.StandardFlowEncryptor;
 import org.apache.nifi.security.util.EncryptionMethod;
@@ -107,7 +107,7 @@ class FlowEncryptorCommand implements Runnable {
     private void processFlowConfigurationFiles(final Properties properties) {
         final String outputAlgorithm = requestedPropertiesAlgorithm == null ? getAlgorithm(properties) : requestedPropertiesAlgorithm;
         final String outputKey = requestedPropertiesKey == null ? getKey(properties) : requestedPropertiesKey;
-        final PropertyEncryptor outputEncryptor = getPropertyEncryptor(outputKey, outputAlgorithm);
+        final PropertyValueHandler outputHandler = getPropertyValueHandler(outputKey, outputAlgorithm);
 
         for (final String configurationFilePropertyName : CONFIGURATION_FILES) {
             final String configurationFileProperty = properties.getProperty(configurationFilePropertyName);
@@ -116,23 +116,23 @@ class FlowEncryptorCommand implements Runnable {
             } else {
                 final File configurationFile = new File(configurationFileProperty);
                 if (configurationFile.exists()) {
-                    processFlowConfiguration(configurationFile, properties, outputEncryptor);
+                    processFlowConfiguration(configurationFile, properties, outputHandler);
                 }
             }
         }
     }
 
-    private void processFlowConfiguration(final File flowConfigurationFile, final Properties properties, final PropertyEncryptor outputEncryptor) {
+    private void processFlowConfiguration(final File flowConfigurationFile, final Properties properties, final PropertyValueHandler outputHandler) {
         try (final InputStream flowInputStream = new GZIPInputStream(new FileInputStream(flowConfigurationFile))) {
             final File flowOutputFile = getFlowOutputFile();
             final Path flowOutputPath = flowOutputFile.toPath();
             try (final OutputStream flowOutputStream = new GZIPOutputStream(new FileOutputStream(flowOutputFile))) {
                 final String inputAlgorithm = getAlgorithm(properties);
                 final String inputPropertiesKey = getKey(properties);
-                final PropertyEncryptor inputEncryptor = getPropertyEncryptor(inputPropertiesKey, inputAlgorithm);
+                final PropertyValueHandler inputHandler = getPropertyValueHandler(inputPropertiesKey, inputAlgorithm);
 
                 final FlowEncryptor flowEncryptor = new StandardFlowEncryptor();
-                flowEncryptor.processFlow(flowInputStream, flowOutputStream, inputEncryptor, outputEncryptor);
+                flowEncryptor.processFlow(flowInputStream, flowOutputStream, inputHandler, outputHandler);
             }
 
             final Path flowConfigurationPath = flowConfigurationFile.toPath();
@@ -192,7 +192,8 @@ class FlowEncryptorCommand implements Runnable {
         Files.write(propertiesFilePath, updatedLines);
     }
 
-    private PropertyEncryptor getPropertyEncryptor(final String propertiesKey, final String propertiesAlgorithm) {
-        return new PropertyEncryptorBuilder(propertiesKey).setAlgorithm(propertiesAlgorithm).build();
+    private PropertyValueHandler getPropertyValueHandler(final String password, final String algorithm) {
+        final PropertyValueHandlerBuilder builder = new PropertyValueHandlerBuilder();
+        return builder.setAlgorithm(algorithm).setPassword(password).build();
     }
 }

@@ -133,7 +133,7 @@ import org.apache.nifi.controller.tasks.ExpireFlowFiles;
 import org.apache.nifi.diagnostics.StorageUsage;
 import org.apache.nifi.diagnostics.SystemDiagnostics;
 import org.apache.nifi.diagnostics.SystemDiagnosticsFactory;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.encrypt.SensitiveValueEncoder;
 import org.apache.nifi.encrypt.StandardSensitiveValueEncoder;
 import org.apache.nifi.engine.FlowEngine;
@@ -334,9 +334,9 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
     private final int heartbeatDelaySeconds;
 
     /**
-     * The sensitive property string encryptor *
+     * The handler used to encrypt/decrypt and encode/decode property values
      */
-    private final PropertyEncryptor encryptor;
+    private final PropertyValueHandler handler;
 
     /**
      * The sensitive value string encoder (hasher)
@@ -393,7 +393,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
             final NiFiProperties properties,
             final Authorizer authorizer,
             final AuditService auditService,
-            final PropertyEncryptor encryptor,
+            final PropertyValueHandler handler,
             final BulletinRepository bulletinRepo,
             final VariableRegistry variableRegistry,
             final FlowRegistryClient flowRegistryClient,
@@ -405,7 +405,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
                 properties,
                 authorizer,
                 auditService,
-                encryptor,
+                handler,
                 /* configuredForClustering */ false,
                 /* NodeProtocolSender */ null,
                 bulletinRepo,
@@ -424,7 +424,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
             final NiFiProperties properties,
             final Authorizer authorizer,
             final AuditService auditService,
-            final PropertyEncryptor encryptor,
+            final PropertyValueHandler handler,
             final NodeProtocolSender protocolSender,
             final BulletinRepository bulletinRepo,
             final ClusterCoordinator clusterCoordinator,
@@ -441,7 +441,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
                 properties,
                 authorizer,
                 auditService,
-                encryptor,
+                handler,
                 /* configuredForClustering */ true,
                 protocolSender,
                 bulletinRepo,
@@ -463,7 +463,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
             final NiFiProperties nifiProperties,
             final Authorizer authorizer,
             final AuditService auditService,
-            final PropertyEncryptor encryptor,
+            final PropertyValueHandler handler,
             final boolean configuredForClustering,
             final NodeProtocolSender protocolSender,
             final BulletinRepository bulletinRepo,
@@ -479,7 +479,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
         maxTimerDrivenThreads = new AtomicInteger(10);
         maxEventDrivenThreads = new AtomicInteger(1);
 
-        this.encryptor = encryptor;
+        this.handler = handler;
         this.nifiProperties = nifiProperties;
         this.heartbeatMonitor = heartbeatMonitor;
         this.leaderElectionManager = leaderElectionManager;
@@ -544,7 +544,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
             throw new RuntimeException(e);
         }
 
-        processScheduler = new StandardProcessScheduler(timerDrivenEngineRef.get(), this, encryptor, stateManagerProvider, this.nifiProperties);
+        processScheduler = new StandardProcessScheduler(timerDrivenEngineRef.get(), this, handler, stateManagerProvider, this.nifiProperties);
         eventDrivenWorkerQueue = new EventDrivenWorkerQueue(false, false, processScheduler);
 
         parameterContextManager = new StandardParameterContextManager();
@@ -556,11 +556,11 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
 
         eventDrivenSchedulingAgent = new EventDrivenSchedulingAgent(
                 eventDrivenEngineRef.get(), controllerServiceProvider, stateManagerProvider, eventDrivenWorkerQueue,
-                repositoryContextFactory, maxEventDrivenThreads.get(), encryptor, extensionManager, this);
+                repositoryContextFactory, maxEventDrivenThreads.get(), handler, extensionManager, this);
         processScheduler.setSchedulingAgent(SchedulingStrategy.EVENT_DRIVEN, eventDrivenSchedulingAgent);
 
-        final QuartzSchedulingAgent quartzSchedulingAgent = new QuartzSchedulingAgent(this, timerDrivenEngineRef.get(), repositoryContextFactory, encryptor);
-        final TimerDrivenSchedulingAgent timerDrivenAgent = new TimerDrivenSchedulingAgent(this, timerDrivenEngineRef.get(), repositoryContextFactory, encryptor, this.nifiProperties);
+        final QuartzSchedulingAgent quartzSchedulingAgent = new QuartzSchedulingAgent(this, timerDrivenEngineRef.get(), repositoryContextFactory, handler);
+        final TimerDrivenSchedulingAgent timerDrivenAgent = new TimerDrivenSchedulingAgent(this, timerDrivenEngineRef.get(), repositoryContextFactory, handler, this.nifiProperties);
         processScheduler.setSchedulingAgent(SchedulingStrategy.TIMER_DRIVEN, timerDrivenAgent);
         // PRIMARY_NODE_ONLY is deprecated, but still exists to handle processors that are still defined with it (they haven't been re-configured with executeNode = PRIMARY).
         processScheduler.setSchedulingAgent(SchedulingStrategy.PRIMARY_NODE_ONLY, timerDrivenAgent);
@@ -595,7 +595,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
         this.reloadComponent = new StandardReloadComponent(this);
 
         final ProcessGroup rootGroup = new StandardProcessGroup(ComponentIdGenerator.generateId().toString(), controllerServiceProvider, processScheduler,
-                encryptor, extensionManager, stateManagerProvider, flowManager, flowRegistryClient, reloadComponent, new MutableVariableRegistry(this.variableRegistry), this,
+                handler, extensionManager, stateManagerProvider, flowManager, flowRegistryClient, reloadComponent, new MutableVariableRegistry(this.variableRegistry), this,
                 nifiProperties);
         rootGroup.setName(FlowManager.DEFAULT_ROOT_GROUP_NAME);
         setRootGroup(rootGroup);
@@ -990,7 +990,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
         for (final ProcessorNode procNode : flowManager.getRootGroup().findAllProcessors()) {
             final Processor processor = procNode.getProcessor();
             try (final NarCloseable nc = NarCloseable.withComponentNarLoader(extensionManager, processor.getClass(), processor.getIdentifier())) {
-                final StandardProcessContext processContext = new StandardProcessContext(procNode, controllerServiceProvider, encryptor,
+                final StandardProcessContext processContext = new StandardProcessContext(procNode, controllerServiceProvider, handler,
                         getStateManagerProvider().getStateManager(processor.getIdentifier()), () -> false, this);
                 ReflectionUtils.quietlyInvokeMethodsWithAnnotation(OnConfigurationRestored.class, processor, processContext);
             }
@@ -1216,8 +1216,8 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
         return validationTrigger;
     }
 
-    public PropertyEncryptor getEncryptor() {
-        return encryptor;
+    public PropertyValueHandler getHandler() {
+        return handler;
     }
 
     public SensitiveValueEncoder getSensitiveValueEncoder() {
@@ -1496,7 +1496,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
      * Synchronizes this controller with the proposed flow.
      * <p>
      * For more details, see
-     * {@link FlowSynchronizer#sync(FlowController, DataFlow, PropertyEncryptor, FlowService, BundleUpdateStrategy)}.
+     * {@link FlowSynchronizer#sync(FlowController, DataFlow, PropertyValueHandler, FlowService, BundleUpdateStrategy)}.
      *
      * @param synchronizer synchronizer
      * @param dataFlow the flow to load the controller with. If the flow is null
@@ -1521,7 +1521,7 @@ public class FlowController implements ReportingTaskProvider, Authorizable, Node
             LOG.debug("Synchronizing controller with proposed flow");
 
             try {
-                synchronizer.sync(this, dataFlow, encryptor, flowService, bundleUpdateStrategy);
+                synchronizer.sync(this, dataFlow, handler, flowService, bundleUpdateStrategy);
             } catch (final UninheritableFlowException ufe) {
                 final NodeIdentifier localNodeId = getNodeId();
                 if (localNodeId != null) {

@@ -17,6 +17,8 @@
 package org.apache.nifi.fingerprint
 
 import org.apache.nifi.encrypt.PropertyEncryptor
+import org.apache.nifi.encrypt.PropertyValueHandler
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
 import org.apache.nifi.nar.ExtensionManager
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager
 import org.apache.nifi.util.NiFiProperties
@@ -40,6 +42,7 @@ class FingerprintFactoryGroovyIT extends GroovyTestCase {
     private static PropertyEncryptor mockEncryptor = [
             encrypt: { String plaintext -> plaintext.reverse() },
             decrypt: { String cipherText -> cipherText.reverse() }] as PropertyEncryptor
+    private static PropertyValueHandler mockHandler = new PropertyValueHandlerBuilder().setEncryptor(mockEncryptor).build()
     private static ExtensionManager extensionManager = new StandardExtensionDiscoveringManager()
 
     private static String originalPropertiesPath = System.getProperty(NiFiProperties.PROPERTIES_FILE_PATH)
@@ -80,7 +83,7 @@ class FingerprintFactoryGroovyIT extends GroovyTestCase {
         logger.info("Read initial flow: ${initialFlowXML[0..<100]}...")
 
         // Create the FingerprintFactory with collaborators
-        FingerprintFactory fingerprintFactory = new FingerprintFactory(mockEncryptor, extensionManager)
+        FingerprintFactory fingerprintFactory = new FingerprintFactory(mockHandler, extensionManager)
 
         def results = []
         def resultDurations = []

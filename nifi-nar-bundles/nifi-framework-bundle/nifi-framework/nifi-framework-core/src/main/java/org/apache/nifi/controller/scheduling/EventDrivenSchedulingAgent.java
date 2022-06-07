@@ -35,7 +35,7 @@ import org.apache.nifi.controller.repository.WeakHashMapProcessSessionFactory;
 import org.apache.nifi.controller.repository.metrics.StandardFlowFileEvent;
 import org.apache.nifi.controller.repository.scheduling.ConnectableProcessContext;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.engine.FlowEngine;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.nar.ExtensionManager;
@@ -69,7 +69,7 @@ public class EventDrivenSchedulingAgent extends AbstractSchedulingAgent {
     private final RepositoryContextFactory contextFactory;
     private final AtomicInteger maxThreadCount;
     private final AtomicInteger activeThreadCount = new AtomicInteger(0);
-    private final PropertyEncryptor encryptor;
+    private final PropertyValueHandler handler;
     private final ExtensionManager extensionManager;
     private final NodeTypeProvider nodeTypeProvider;
 
@@ -80,14 +80,14 @@ public class EventDrivenSchedulingAgent extends AbstractSchedulingAgent {
 
     public EventDrivenSchedulingAgent(final FlowEngine flowEngine, final ControllerServiceProvider serviceProvider, final StateManagerProvider stateManagerProvider,
                                       final EventDrivenWorkerQueue workerQueue, final RepositoryContextFactory contextFactory, final int maxThreadCount,
-                                      final PropertyEncryptor encryptor, final ExtensionManager extensionManager, final NodeTypeProvider nodeTypeProvider) {
+                                      final PropertyValueHandler handler, final ExtensionManager extensionManager, final NodeTypeProvider nodeTypeProvider) {
         super(flowEngine);
         this.serviceProvider = serviceProvider;
         this.stateManagerProvider = stateManagerProvider;
         this.workerQueue = workerQueue;
         this.contextFactory = contextFactory;
         this.maxThreadCount = new AtomicInteger(maxThreadCount);
-        this.encryptor = encryptor;
+        this.handler = handler;
         this.extensionManager = extensionManager;
         this.nodeTypeProvider = nodeTypeProvider;
 
@@ -217,7 +217,7 @@ public class EventDrivenSchedulingAgent extends AbstractSchedulingAgent {
                         final ProcessorNode procNode = (ProcessorNode) connectable;
                         final StateManager stateManager = new TaskTerminationAwareStateManager(getStateManager(connectable.getIdentifier()), scheduleState::isTerminated);
                         final StandardProcessContext standardProcessContext = new StandardProcessContext(
-                                procNode, serviceProvider, encryptor, stateManager, scheduleState::isTerminated, nodeTypeProvider);
+                                procNode, serviceProvider, handler, stateManager, scheduleState::isTerminated, nodeTypeProvider);
 
                         final long runNanos = procNode.getRunDuration(TimeUnit.NANOSECONDS);
                         final ProcessSessionFactory sessionFactory;
@@ -294,7 +294,7 @@ public class EventDrivenSchedulingAgent extends AbstractSchedulingAgent {
                     } else {
                         final ProcessSessionFactory sessionFactory = new StandardProcessSessionFactory(context, scheduleState::isTerminated);
                         final ActiveProcessSessionFactory activeSessionFactory = new WeakHashMapProcessSessionFactory(sessionFactory);
-                        final ConnectableProcessContext connectableProcessContext = new ConnectableProcessContext(connectable, encryptor, getStateManager(connectable.getIdentifier()));
+                        final ConnectableProcessContext connectableProcessContext = new ConnectableProcessContext(connectable, handler, getStateManager(connectable.getIdentifier()));
                         trigger(connectable, scheduleState, connectableProcessContext, activeSessionFactory);
 
                         // See explanation above for the ProcessorNode as to why we do this.
