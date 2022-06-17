@@ -35,7 +35,7 @@
         <constructor-arg ref="nifiProperties" />
     </bean>
 
-    <bean id="propertyValueHandler" class="org.apache.nifi.encrypt.PropertyValueHandlerFactory" factory-method="getPropertyValueHandler">
+    <bean id="propertyValueHandler" class="org.apache.nifi.flow.properties.PropertyValueHandlerFactory" factory-method="getPropertyValueHandler">
         <constructor-arg ref="nifiProperties" />
     </bean>
 

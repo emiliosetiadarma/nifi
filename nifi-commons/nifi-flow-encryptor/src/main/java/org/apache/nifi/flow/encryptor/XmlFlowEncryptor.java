@@ -16,7 +16,7 @@
  */
 package org.apache.nifi.flow.encryptor;
 
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.flow.properties.PropertyValueHandler;
 import org.apache.nifi.xml.processing.stream.StandardXMLEventReaderProvider;
 import org.apache.nifi.xml.processing.stream.XMLEventReaderProvider;
 

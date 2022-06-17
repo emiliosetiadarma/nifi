@@ -38,7 +38,6 @@
         <module>nifi-parameter</module>
         <module>nifi-property-encryptor</module>
         <module>nifi-property-utils</module>
-        <module>nifi-property-value-handler</module>
         <module>nifi-properties</module>
         <module>nifi-property-protection-api</module>
         <module>nifi-property-protection-aws</module>

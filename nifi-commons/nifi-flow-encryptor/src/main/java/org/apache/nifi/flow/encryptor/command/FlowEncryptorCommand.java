@@ -16,10 +16,10 @@
  */
 package org.apache.nifi.flow.encryptor.command;
 
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
-import org.apache.nifi.encrypt.PropertyValueHandlerConfigurationContext;
-import org.apache.nifi.encrypt.StandardPropertyValueHandlerConfigurationContext;
+import org.apache.nifi.flow.properties.PropertyValueHandler;
+import org.apache.nifi.flow.properties.PropertyValueHandlerBuilder;
+import org.apache.nifi.flow.properties.PropertyValueHandlerConfigurationContext;
+import org.apache.nifi.flow.properties.StandardPropertyValueHandlerConfigurationContext;
 import org.apache.nifi.flow.encryptor.FlowEncryptor;
 import org.apache.nifi.flow.encryptor.StandardFlowEncryptor;
 import org.apache.nifi.security.util.EncryptionMethod;

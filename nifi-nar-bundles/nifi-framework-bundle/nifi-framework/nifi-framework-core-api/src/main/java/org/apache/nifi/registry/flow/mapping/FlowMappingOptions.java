@@ -17,7 +17,7 @@
 
 package org.apache.nifi.registry.flow.mapping;
 
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.flow.properties.PropertyValueHandler;
 
 import static java.util.Objects.requireNonNull;
 

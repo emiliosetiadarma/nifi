@@ -21,7 +21,7 @@ import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.serialization.FlowEncodingVersion;
 import org.apache.nifi.controller.serialization.FlowFromDOMFactory;
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.flow.properties.PropertyValueHandler;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.reporting.BulletinRepository;
 import org.apache.nifi.util.BundleUtils;

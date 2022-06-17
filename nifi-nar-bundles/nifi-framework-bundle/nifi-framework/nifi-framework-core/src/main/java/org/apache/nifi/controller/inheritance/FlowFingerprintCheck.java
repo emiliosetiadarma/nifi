@@ -18,9 +18,9 @@ package org.apache.nifi.controller.inheritance;
 
 import org.apache.nifi.cluster.protocol.DataFlow;
 import org.apache.nifi.controller.FlowController;
-import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.encrypt.SensitiveValueEncoder;
 import org.apache.nifi.fingerprint.FingerprintFactory;
+import org.apache.nifi.flow.properties.PropertyValueHandler;
 import org.apache.nifi.nar.ExtensionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

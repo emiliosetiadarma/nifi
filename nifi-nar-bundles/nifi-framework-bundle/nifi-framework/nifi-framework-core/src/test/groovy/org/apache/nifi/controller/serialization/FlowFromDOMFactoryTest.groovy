@@ -19,8 +19,8 @@ package org.apache.nifi.controller.serialization
 import org.apache.commons.codec.binary.Hex
 import org.apache.nifi.encrypt.EncryptionException
 import org.apache.nifi.encrypt.PropertyEncryptor
-import org.apache.nifi.encrypt.PropertyValueHandler
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
+import org.apache.nifi.flow.properties.PropertyValueHandler
+import org.apache.nifi.flow.properties.PropertyValueHandlerBuilder
 import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith

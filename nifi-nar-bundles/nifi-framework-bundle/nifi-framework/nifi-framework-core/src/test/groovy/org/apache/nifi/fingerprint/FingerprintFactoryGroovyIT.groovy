@@ -17,8 +17,8 @@
 package org.apache.nifi.fingerprint
 
 import org.apache.nifi.encrypt.PropertyEncryptor
-import org.apache.nifi.encrypt.PropertyValueHandler
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
+import org.apache.nifi.flow.properties.PropertyValueHandler
+import org.apache.nifi.flow.properties.PropertyValueHandlerBuilder
 import org.apache.nifi.nar.ExtensionManager
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager
 import org.apache.nifi.util.NiFiProperties

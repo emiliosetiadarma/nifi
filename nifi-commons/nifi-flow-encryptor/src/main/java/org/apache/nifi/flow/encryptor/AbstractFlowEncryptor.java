@@ -16,7 +16,7 @@
  */
 package org.apache.nifi.flow.encryptor;
 
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.flow.properties.PropertyValueHandler;
 
 public abstract class AbstractFlowEncryptor implements FlowEncryptor {
     protected String getOutputEncrypted(final String inputEncrypted, final PropertyValueHandler inputHandler, final PropertyValueHandler outputHandler) {

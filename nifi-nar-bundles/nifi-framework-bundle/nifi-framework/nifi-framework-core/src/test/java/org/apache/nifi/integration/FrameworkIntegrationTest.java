@@ -69,8 +69,8 @@ import org.apache.nifi.controller.state.providers.local.WriteAheadLocalStateProv
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
 import org.apache.nifi.controller.status.history.VolatileComponentStatusRepository;
 import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
+import org.apache.nifi.flow.properties.PropertyValueHandler;
+import org.apache.nifi.flow.properties.PropertyValueHandlerBuilder;
 import org.apache.nifi.engine.FlowEngine;
 import org.apache.nifi.events.VolatileBulletinRepository;
 import org.apache.nifi.flowfile.FlowFile;
