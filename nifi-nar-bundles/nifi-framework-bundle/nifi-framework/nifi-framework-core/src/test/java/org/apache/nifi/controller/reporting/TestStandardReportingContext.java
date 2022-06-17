@@ -32,8 +32,8 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.ReportingTaskNode;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
 import org.apache.nifi.nar.ExtensionDiscoveringManager;
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager;
 import org.apache.nifi.nar.SystemBundle;
@@ -63,7 +63,7 @@ public class TestStandardReportingContext {
     private AbstractPolicyBasedAuthorizer authorizer;
     private FlowFileEventRepository flowFileEventRepo;
     private AuditService auditService;
-    private PropertyEncryptor encryptor;
+    private PropertyValueHandler handler;
     private NiFiProperties nifiProperties;
     private Bundle systemBundle;
     private ExtensionDiscoveringManager extensionManager;
@@ -82,7 +82,7 @@ public class TestStandardReportingContext {
         otherProps.put("nifi.remote.input.socket.port", "");
         otherProps.put("nifi.remote.input.secure", "");
         nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
-        encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
+        handler = PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties);
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);
@@ -132,7 +132,7 @@ public class TestStandardReportingContext {
         flowRegistry = Mockito.mock(FlowRegistryClient.class);
 
         bulletinRepo = Mockito.mock(BulletinRepository.class);
-        controller = FlowController.createStandaloneInstance(flowFileEventRepo, nifiProperties, authorizer, auditService, encryptor,
+        controller = FlowController.createStandaloneInstance(flowFileEventRepo, nifiProperties, authorizer, auditService, handler,
                 bulletinRepo, variableRegistry, flowRegistry, extensionManager, statusHistoryRepository);
     }
 

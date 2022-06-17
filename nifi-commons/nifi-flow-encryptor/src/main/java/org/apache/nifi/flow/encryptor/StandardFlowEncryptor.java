@@ -16,7 +16,7 @@
  */
 package org.apache.nifi.flow.encryptor;
 
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -35,19 +35,19 @@ public class StandardFlowEncryptor implements FlowEncryptor {
      *
      * @param inputStream Flow Configuration Input Stream
      * @param outputStream Flow Configuration Output Stream encrypted using new password
-     * @param inputEncryptor Property Encryptor for Input Configuration
-     * @param outputEncryptor Property Encryptor for Output Configuration
+     * @param inputHandler Property Value Handler for Input Configuration
+     * @param outputHandler Property Value Handler for Output Configuration
      */
     @Override
     public void processFlow(final InputStream inputStream, final OutputStream outputStream,
-                            final PropertyEncryptor inputEncryptor, final PropertyEncryptor outputEncryptor) {
+                            final PropertyValueHandler inputHandler, final PropertyValueHandler outputHandler) {
         final BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
         bufferedInputStream.mark(1);
         try {
             final int firstByte = bufferedInputStream.read();
             bufferedInputStream.reset();
             final FlowEncryptor flowEncryptor = (firstByte == XML_DECLARATION) ? new XmlFlowEncryptor() : new JsonFlowEncryptor();
-            flowEncryptor.processFlow(bufferedInputStream, outputStream, inputEncryptor, outputEncryptor);
+            flowEncryptor.processFlow(bufferedInputStream, outputStream, inputHandler, outputHandler);
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }

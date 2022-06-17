@@ -99,6 +99,7 @@ public final class StandardFlowConfigurationDAO implements FlowConfigurationDAO 
 
         final VersionedFlowSynchronizer versionedFlowSynchronizer = new VersionedFlowSynchronizer(extensionManager, nifiProperties.getFlowConfigurationJsonFile(), archiveManager);
         final XmlFlowSynchronizer xmlFlowSynchronizer = new XmlFlowSynchronizer(nifiProperties, extensionManager);
+
         final FlowSynchronizer standardFlowSynchronizer = new StandardFlowSynchronizer(xmlFlowSynchronizer, versionedFlowSynchronizer);
 
         controller.synchronize(standardFlowSynchronizer, dataFlow, flowService, bundleUpdateStrategy);

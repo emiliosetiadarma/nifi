@@ -20,7 +20,7 @@ import org.apache.nifi.connectable.Size;
 import org.apache.nifi.controller.ScheduledState;
 import org.apache.nifi.controller.service.ControllerServiceState;
 import org.apache.nifi.encrypt.EncryptionException;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.groups.RemoteProcessGroupPortDescriptor;
 import org.apache.nifi.parameter.ExpressionLanguageAwareParameterParser;
 import org.apache.nifi.parameter.ParameterParser;
@@ -108,7 +108,7 @@ public class FlowFromDOMFactory {
         return styles;
     }
 
-    public static ControllerServiceDTO getControllerService(final Element element, final PropertyEncryptor encryptor, final FlowEncodingVersion flowEncodingVersion) {
+    public static ControllerServiceDTO getControllerService(final Element element, final PropertyValueHandler handler, final FlowEncodingVersion flowEncodingVersion) {
         final ControllerServiceDTO dto = new ControllerServiceDTO();
 
         dto.setId(getString(element, "id"));
@@ -121,14 +121,14 @@ public class FlowFromDOMFactory {
         final boolean enabled = getBoolean(element, "enabled");
         dto.setState(enabled ? ControllerServiceState.ENABLED.name() : ControllerServiceState.DISABLED.name());
 
-        dto.setSensitiveDynamicPropertyNames(getSensitivePropertyNames(element));
-        dto.setProperties(getProperties(element, encryptor, flowEncodingVersion));
+        dto.setSensitiveDynamicPropertyNames(getSensitivePropertyNames(element, handler));
+        dto.setProperties(getProperties(element, handler, flowEncodingVersion));
         dto.setAnnotationData(getString(element, "annotationData"));
 
         return dto;
     }
 
-    public static ReportingTaskDTO getReportingTask(final Element element, final PropertyEncryptor encryptor, final FlowEncodingVersion flowEncodingVersion) {
+    public static ReportingTaskDTO getReportingTask(final Element element, final PropertyValueHandler handler, final FlowEncodingVersion flowEncodingVersion) {
         final ReportingTaskDTO dto = new ReportingTaskDTO();
 
         dto.setId(getString(element, "id"));
@@ -140,14 +140,14 @@ public class FlowFromDOMFactory {
         dto.setState(getString(element, "scheduledState"));
         dto.setSchedulingStrategy(getString(element, "schedulingStrategy"));
 
-        dto.setSensitiveDynamicPropertyNames(getSensitivePropertyNames(element));
-        dto.setProperties(getProperties(element, encryptor, flowEncodingVersion));
+        dto.setSensitiveDynamicPropertyNames(getSensitivePropertyNames(element, handler));
+        dto.setProperties(getProperties(element, handler, flowEncodingVersion));
         dto.setAnnotationData(getString(element, "annotationData"));
 
         return dto;
     }
 
-    public static ParameterContextDTO getParameterContext(final Element element, final PropertyEncryptor encryptor) {
+    public static ParameterContextDTO getParameterContext(final Element element, final PropertyValueHandler handler) {
         final ParameterContextDTO dto = new ParameterContextDTO();
 
         dto.setId(getString(element, "id"));
@@ -163,7 +163,7 @@ public class FlowFromDOMFactory {
             parameterDto.setDescription(getString(parameterElement, "description"));
             parameterDto.setSensitive(getBoolean(parameterElement, "sensitive"));
 
-            final String value = decrypt(getString(parameterElement, "value"), encryptor);
+            final String value = decrypt(getString(parameterElement, "value"), handler);
             parameterDto.setValue(value);
 
             final ParameterEntity parameterEntity = new ParameterEntity();
@@ -184,7 +184,7 @@ public class FlowFromDOMFactory {
         return dto;
     }
 
-    public static ProcessGroupDTO getProcessGroup(final String parentId, final Element element, final PropertyEncryptor encryptor, final FlowEncodingVersion encodingVersion) {
+    public static ProcessGroupDTO getProcessGroup(final String parentId, final Element element, final PropertyValueHandler handler, final FlowEncodingVersion encodingVersion) {
         final ProcessGroupDTO dto = new ProcessGroupDTO();
         final String groupId = getString(element, "id");
         dto.setId(groupId);
@@ -229,7 +229,7 @@ public class FlowFromDOMFactory {
 
         NodeList nodeList = DomUtils.getChildNodesByTagName(element, "processor");
         for (int i = 0; i < nodeList.getLength(); i++) {
-            processors.add(getProcessor((Element) nodeList.item(i), encryptor, encodingVersion));
+            processors.add(getProcessor((Element) nodeList.item(i), handler, encodingVersion));
         }
 
         nodeList = DomUtils.getChildNodesByTagName(element, "funnel");
@@ -254,12 +254,12 @@ public class FlowFromDOMFactory {
 
         nodeList = DomUtils.getChildNodesByTagName(element, "processGroup");
         for (int i = 0; i < nodeList.getLength(); i++) {
-            processGroups.add(getProcessGroup(groupId, (Element) nodeList.item(i), encryptor, encodingVersion));
+            processGroups.add(getProcessGroup(groupId, (Element) nodeList.item(i), handler, encodingVersion));
         }
 
         nodeList = DomUtils.getChildNodesByTagName(element, "remoteProcessGroup");
         for (int i = 0; i < nodeList.getLength(); i++) {
-            remoteProcessGroups.add(getRemoteProcessGroup((Element) nodeList.item(i), encryptor));
+            remoteProcessGroups.add(getRemoteProcessGroup((Element) nodeList.item(i), handler));
         }
 
         nodeList = DomUtils.getChildNodesByTagName(element, "connection");
@@ -269,7 +269,7 @@ public class FlowFromDOMFactory {
 
         nodeList = DomUtils.getChildNodesByTagName(element, "controllerService");
         for (int i=0; i < nodeList.getLength(); i++) {
-            controllerServices.add(getControllerService((Element) nodeList.item(i), encryptor, encodingVersion));
+            controllerServices.add(getControllerService((Element) nodeList.item(i), handler, encodingVersion));
         }
 
         final FlowSnippetDTO groupContents = new FlowSnippetDTO();
@@ -367,7 +367,7 @@ public class FlowFromDOMFactory {
         return dto;
     }
 
-    public static RemoteProcessGroupDTO getRemoteProcessGroup(final Element element, final PropertyEncryptor encryptor) {
+    public static RemoteProcessGroupDTO getRemoteProcessGroup(final Element element, final PropertyValueHandler handler) {
         final RemoteProcessGroupDTO dto = new RemoteProcessGroupDTO();
         dto.setId(getString(element, "id"));
         dto.setVersionedComponentId(getString(element, "versionedComponentId"));
@@ -386,7 +386,7 @@ public class FlowFromDOMFactory {
         dto.setLocalNetworkInterface(getString(element, "networkInterface"));
 
         final String rawPassword = getString(element, "proxyPassword");
-        final String proxyPassword = encryptor == null ? rawPassword : decrypt(rawPassword, encryptor);
+        final String proxyPassword = handler == null ? rawPassword : decrypt(rawPassword, handler);
         dto.setProxyPassword(proxyPassword);
 
         return dto;
@@ -481,7 +481,7 @@ public class FlowFromDOMFactory {
         return descriptor;
     }
 
-    public static ProcessorDTO getProcessor(final Element element, final PropertyEncryptor encryptor, final FlowEncodingVersion flowEncodingVersion) {
+    public static ProcessorDTO getProcessor(final Element element, final PropertyValueHandler handler, final FlowEncodingVersion flowEncodingVersion) {
         final ProcessorDTO dto = new ProcessorDTO();
 
         dto.setId(getString(element, "id"));
@@ -541,8 +541,8 @@ public class FlowFromDOMFactory {
             configDto.setRunDurationMillis(TimeUnit.NANOSECONDS.toMillis(runDurationNanos));
         }
 
-        configDto.setSensitiveDynamicPropertyNames(getSensitivePropertyNames(element));
-        configDto.setProperties(getProperties(element, encryptor, flowEncodingVersion));
+        configDto.setSensitiveDynamicPropertyNames(getSensitivePropertyNames(element, handler));
+        configDto.setProperties(getProperties(element, handler, flowEncodingVersion));
         configDto.setAnnotationData(getString(element, "annotationData"));
 
         final Set<String> autoTerminatedRelationships = new HashSet<>();
@@ -555,13 +555,13 @@ public class FlowFromDOMFactory {
         return dto;
     }
 
-    private static Set<String> getSensitivePropertyNames(final Element element) {
+    private static Set<String> getSensitivePropertyNames(final Element element, final PropertyValueHandler handler) {
         final Set<String> sensitivePropertyNames = new LinkedHashSet<>();
 
         final List<Element> propertyElements = getChildrenByTagName(element, "property");
         for (final Element propertyElement : propertyElements) {
             final String rawPropertyValue = getString(propertyElement, "value");
-            if (isValueSensitive(rawPropertyValue)) {
+            if (isValueSensitive(rawPropertyValue, handler)) {
                 final String name = getString(propertyElement, "name");
                 sensitivePropertyNames.add(name);
             }
@@ -570,7 +570,7 @@ public class FlowFromDOMFactory {
         return sensitivePropertyNames;
     }
 
-    private static LinkedHashMap<String, String> getProperties(final Element element, final PropertyEncryptor encryptor, final FlowEncodingVersion flowEncodingVersion) {
+    private static LinkedHashMap<String, String> getProperties(final Element element, final PropertyValueHandler handler, final FlowEncodingVersion flowEncodingVersion) {
         final LinkedHashMap<String, String> properties = new LinkedHashMap<>();
         final List<Element> propertyNodeList = getChildrenByTagName(element, "property");
 
@@ -580,7 +580,7 @@ public class FlowFromDOMFactory {
             final String name = getString(propertyElement, "name");
 
             final String rawPropertyValue = getString(propertyElement, "value");
-            final String value = encryptor == null ? rawPropertyValue : decrypt(rawPropertyValue, encryptor);
+            final String value = handler == null ? rawPropertyValue : decrypt(rawPropertyValue, handler);
 
             if (flowEncodingVersion == null || (flowEncodingVersion.getMajorVersion() <= 1 && flowEncodingVersion.getMinorVersion() < 4)) {
                 // Version 1.4 introduced the #{paramName} syntax for referencing parameters. If the version is less than 1.4, we must escpae any
@@ -653,10 +653,10 @@ public class FlowFromDOMFactory {
         return DomUtils.getChildElementsByTagName(element, childElementName);
     }
 
-    private static String decrypt(final String value, final PropertyEncryptor encryptor) {
-        if (isValueSensitive(value)) {
+    private static String decrypt(final String value, final PropertyValueHandler handler) {
+        if (isValueSensitive(value, handler)) {
             try {
-                return encryptor.decrypt(value.substring(FlowSerializer.ENC_PREFIX.length(), value.length() - FlowSerializer.ENC_SUFFIX.length()));
+                return handler.decode(value);
             } catch (EncryptionException e) {
                 final String moreDescriptiveMessage = "There was a problem decrypting a sensitive flow configuration value. " +
                         "Check that the nifi.sensitive.props.key value in nifi.properties matches the value used to encrypt the flow.xml.gz file";
@@ -668,7 +668,7 @@ public class FlowFromDOMFactory {
         }
     }
 
-    private static boolean isValueSensitive(final String value) {
-        return value != null && value.startsWith(FlowSerializer.ENC_PREFIX) && value.endsWith(FlowSerializer.ENC_SUFFIX);
+    private static boolean isValueSensitive(final String value, final PropertyValueHandler handler) {
+        return value != null && handler != null && handler.isEncoded(value);
     }
 }

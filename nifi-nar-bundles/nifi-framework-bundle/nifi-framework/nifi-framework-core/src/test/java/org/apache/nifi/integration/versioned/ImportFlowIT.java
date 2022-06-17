@@ -26,6 +26,8 @@ import org.apache.nifi.controller.ControllerService;
 import org.apache.nifi.controller.ProcessorNode;
 import org.apache.nifi.controller.StandardSnippet;
 import org.apache.nifi.controller.service.ControllerServiceNode;
+import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.Bundle;
 import org.apache.nifi.flow.VersionedControllerService;
 import org.apache.nifi.flow.VersionedComponent;
@@ -71,7 +73,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertTrue;
@@ -739,8 +740,10 @@ public class ImportFlowIT extends FrameworkIntegrationTest {
         final ComparableDataFlow registryFlow = new StandardComparableDataFlow("Versioned Flow", registryGroup);
 
         final Set<String> ancestorServiceIds = processGroup.getAncestorServiceIds();
-        final FlowComparator flowComparator = new StandardFlowComparator(registryFlow, localFlow, ancestorServiceIds, new ConciseEvolvingDifferenceDescriptor(), Function.identity(),
-            VersionedComponent::getIdentifier);
+
+        final PropertyValueHandler handler = new PassthroughPropertyValueHandler();
+        final FlowComparator flowComparator = new StandardFlowComparator(registryFlow, localFlow, ancestorServiceIds,
+                new ConciseEvolvingDifferenceDescriptor(), handler, VersionedComponent::getIdentifier);
         final FlowComparison flowComparison = flowComparator.compare();
         final Set<FlowDifference> differences = flowComparison.getDifferences().stream()
             .filter(FlowDifferenceFilters.FILTER_ADDED_REMOVED_REMOTE_PORTS)

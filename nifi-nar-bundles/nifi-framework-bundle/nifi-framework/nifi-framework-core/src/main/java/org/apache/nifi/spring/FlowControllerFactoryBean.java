@@ -25,7 +25,7 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.leader.election.LeaderElectionManager;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.nar.ExtensionManager;
 import org.apache.nifi.registry.VariableRegistry;
 import org.apache.nifi.registry.flow.FlowRegistryClient;
@@ -48,7 +48,7 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
     private NiFiProperties properties;
     private Authorizer authorizer;
     private AuditService auditService;
-    private PropertyEncryptor encryptor;
+    private PropertyValueHandler handler;
     private BulletinRepository bulletinRepository;
     private ClusterCoordinator clusterCoordinator;
     private VariableRegistry variableRegistry;
@@ -71,7 +71,7 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
                     properties,
                     authorizer,
                     auditService,
-                    encryptor,
+                    handler,
                     nodeProtocolSender,
                     bulletinRepository,
                     clusterCoordinator,
@@ -88,7 +88,7 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
                     properties,
                     authorizer,
                     auditService,
-                    encryptor,
+                    handler,
                     bulletinRepository,
                     variableRegistry,
                     flowRegistryClient,
@@ -126,10 +126,6 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
         this.authorizer = authorizer;
     }
 
-    public void setEncryptor(final PropertyEncryptor encryptor) {
-        this.encryptor = encryptor;
-    }
-
     public void setAuditService(final AuditService auditService) {
         this.auditService = auditService;
     }
@@ -164,5 +160,9 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
 
     public void setStatusHistoryRepository(StatusHistoryRepository statusHistoryRepository) {
         this.statusHistoryRepository = statusHistoryRepository;
+    }
+
+    public void setHandler(PropertyValueHandler handler) {
+        this.handler = handler;
     }
 }

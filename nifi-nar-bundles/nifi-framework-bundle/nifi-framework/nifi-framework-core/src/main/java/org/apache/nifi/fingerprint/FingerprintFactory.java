@@ -23,7 +23,7 @@ import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.serialization.FlowEncodingVersion;
 import org.apache.nifi.controller.serialization.FlowFromDOMFactory;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.encrypt.SensitiveValueEncoder;
 import org.apache.nifi.nar.ExtensionManager;
 import org.apache.nifi.util.BundleUtils;
@@ -79,17 +79,15 @@ public class FingerprintFactory {
     public static final String NO_VALUE = "NO_VALUE";
 
     static final String FLOW_CONFIG_XSD = "/FlowConfiguration.xsd";
-    private static final String ENCRYPTED_VALUE_PREFIX = "enc{";
-    private static final String ENCRYPTED_VALUE_SUFFIX = "}";
-    private final PropertyEncryptor encryptor;
+    private final PropertyValueHandler handler;
     private final Schema schema;
     private final ExtensionManager extensionManager;
     private final SensitiveValueEncoder sensitiveValueEncoder;
 
     private static final Logger logger = LoggerFactory.getLogger(FingerprintFactory.class);
 
-    public FingerprintFactory(final PropertyEncryptor encryptor, final ExtensionManager extensionManager, final SensitiveValueEncoder sensitiveValueEncoder) {
-        this.encryptor = encryptor;
+    public FingerprintFactory(final PropertyValueHandler handler, final ExtensionManager extensionManager, final SensitiveValueEncoder sensitiveValueEncoder) {
+        this.handler = handler;
         this.extensionManager = extensionManager;
         this.sensitiveValueEncoder = sensitiveValueEncoder;
 
@@ -220,7 +218,7 @@ public class FingerprintFactory {
         if (controllerServicesElem != null) {
             final List<ControllerServiceDTO> serviceDtos = new ArrayList<>();
             for (final Element serviceElem : DomUtils.getChildElementsByTagName(controllerServicesElem, "controllerService")) {
-                final ControllerServiceDTO dto = FlowFromDOMFactory.getControllerService(serviceElem, encryptor, encodingVersion);
+                final ControllerServiceDTO dto = FlowFromDOMFactory.getControllerService(serviceElem, handler, encodingVersion);
                 serviceDtos.add(dto);
             }
 
@@ -250,7 +248,7 @@ public class FingerprintFactory {
         if (reportingTasksElem != null) {
             final List<ReportingTaskDTO> reportingTaskDtos = new ArrayList<>();
             for (final Element taskElem : DomUtils.getChildElementsByTagName(reportingTasksElem, "reportingTask")) {
-                final ReportingTaskDTO dto = FlowFromDOMFactory.getReportingTask(taskElem, encryptor, encodingVersion);
+                final ReportingTaskDTO dto = FlowFromDOMFactory.getReportingTask(taskElem, handler, encodingVersion);
                 reportingTaskDtos.add(dto);
             }
 
@@ -419,7 +417,7 @@ public class FingerprintFactory {
         final NodeList controllerServiceElems = DomUtils.getChildNodesByTagName(processGroupElem, "controllerService");
         final List<Element> sortedControllerServiceElems = sortElements(controllerServiceElems, getIdsComparator());
         for (final Element controllerServiceElem : sortedControllerServiceElems) {
-            final ControllerServiceDTO dto = FlowFromDOMFactory.getControllerService(controllerServiceElem, encryptor, encodingVersion);
+            final ControllerServiceDTO dto = FlowFromDOMFactory.getControllerService(controllerServiceElem, handler, encodingVersion);
             addControllerServiceFingerprint(builder, dto);
         }
 
@@ -922,12 +920,10 @@ public class FingerprintFactory {
     }
 
     private boolean isEncrypted(final String value) {
-        return (value.startsWith(ENCRYPTED_VALUE_PREFIX) && value.endsWith(ENCRYPTED_VALUE_SUFFIX));
+        return handler.isEncoded(value);
     }
 
     private String decrypt(final String value) throws FingerprintException {
-        final int decryptStartIdx = ENCRYPTED_VALUE_PREFIX.length();
-        final int decryptEndIdx = value.length() - ENCRYPTED_VALUE_SUFFIX.length();
-        return encryptor.decrypt(value.substring(decryptStartIdx, decryptEndIdx));
+        return handler.decode(value);
     }
 }

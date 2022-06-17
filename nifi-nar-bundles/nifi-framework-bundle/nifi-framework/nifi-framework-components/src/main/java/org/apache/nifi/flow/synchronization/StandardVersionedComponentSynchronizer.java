@@ -43,6 +43,7 @@ import org.apache.nifi.controller.service.ControllerServiceNode;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
 import org.apache.nifi.controller.service.ControllerServiceState;
 import org.apache.nifi.encrypt.EncryptionException;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.BatchSize;
 import org.apache.nifi.flow.Bundle;
 import org.apache.nifi.flow.ComponentType;
@@ -69,7 +70,6 @@ import org.apache.nifi.groups.FlowFileConcurrency;
 import org.apache.nifi.groups.FlowFileOutboundPolicy;
 import org.apache.nifi.groups.FlowSynchronizationOptions;
 import org.apache.nifi.groups.ProcessGroup;
-import org.apache.nifi.groups.PropertyDecryptor;
 import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.groups.RemoteProcessGroupPortDescriptor;
 import org.apache.nifi.groups.StandardVersionedFlowStatus;
@@ -172,9 +172,8 @@ public class StandardVersionedComponentSynchronizer implements VersionedComponen
         final ComparableDataFlow localFlow = new StandardComparableDataFlow("Currently Loaded Flow", versionedGroup);
         final ComparableDataFlow proposedFlow = new StandardComparableDataFlow("Proposed Flow", versionedExternalFlow.getFlowContents());
 
-        final PropertyDecryptor decryptor = options.getPropertyDecryptor();
         final FlowComparator flowComparator = new StandardFlowComparator(proposedFlow, localFlow, group.getAncestorServiceIds(),
-            new StaticDifferenceDescriptor(), decryptor::decrypt, options.getComponentComparisonIdLookup());
+                new StaticDifferenceDescriptor(), options.getPropertyValueHandler(), options.getComponentComparisonIdLookup());
         final FlowComparison flowComparison = flowComparator.compare();
 
         updatedVersionedComponentIds.clear();
@@ -1231,7 +1230,7 @@ public class StandardVersionedComponentSynchronizer implements VersionedComponen
         // Find Encrypted Property values and find associated dynamic Property Descriptor names
         proposedProperties.entrySet()
                 .stream()
-                .filter(entry -> isValueEncrypted(entry.getValue()))
+                .filter(entry -> isValueEncrypted(entry.getValue(), syncOptions.getPropertyValueHandler()))
                 .map(Map.Entry::getKey)
                 .map(componentNode::getPropertyDescriptor)
                 .filter(PropertyDescriptor::isDynamic)
@@ -1314,7 +1313,7 @@ public class StandardVersionedComponentSynchronizer implements VersionedComponen
                     // so we want to continue on and update the value to null.
                 }
 
-                value = decrypt(value, syncOptions.getPropertyDecryptor());
+                value = decrypt(value, syncOptions.getPropertyValueHandler());
                 fullPropertyMap.put(propertyName, value);
             }
         }
@@ -1322,10 +1321,10 @@ public class StandardVersionedComponentSynchronizer implements VersionedComponen
         return fullPropertyMap;
     }
 
-    private static String decrypt(final String value, final PropertyDecryptor decryptor) {
-        if (isValueEncrypted(value)) {
+    private static String decrypt(final String value, final PropertyValueHandler handler) {
+        if (isValueEncrypted(value, handler)) {
             try {
-                return decryptor.decrypt(value.substring(ENC_PREFIX.length(), value.length() - ENC_SUFFIX.length()));
+                return handler.decode(value);
             } catch (EncryptionException e) {
                 final String moreDescriptiveMessage = "There was a problem decrypting a sensitive flow configuration value. " +
                         "Check that the nifi.sensitive.props.key value in nifi.properties matches the value used to encrypt the flow.xml.gz file";
@@ -1336,8 +1335,8 @@ public class StandardVersionedComponentSynchronizer implements VersionedComponen
         }
     }
 
-    private static boolean isValueEncrypted(final String value) {
-        return value != null && value.startsWith(ENC_PREFIX) && value.endsWith(ENC_SUFFIX);
+    private static boolean isValueEncrypted(final String value, final PropertyValueHandler handler) {
+        return value != null && handler.isEncoded(value);
     }
 
     private void verifyCanSynchronize(final ParameterContext parameterContext, final VersionedParameterContext proposed) throws FlowSynchronizationException {

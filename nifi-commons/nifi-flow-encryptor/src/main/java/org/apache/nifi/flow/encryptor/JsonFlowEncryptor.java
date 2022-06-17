@@ -21,23 +21,22 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
-import java.util.regex.Matcher;
 
 public class JsonFlowEncryptor extends AbstractFlowEncryptor {
     @Override
     public void processFlow(final InputStream inputStream, final OutputStream outputStream,
-                            final PropertyEncryptor inputEncryptor, final PropertyEncryptor outputEncryptor) {
+                            final PropertyValueHandler inputHandler, final PropertyValueHandler outputHandler) {
         final JsonFactory factory = new JsonFactory();
         try (final JsonGenerator generator = factory.createGenerator(outputStream)){
             try (final JsonParser parser = factory.createParser(inputStream)) {
                 parser.setCodec(new ObjectMapper());
-                processJsonByTokens(parser, generator, inputEncryptor, outputEncryptor);
+                processJsonByTokens(parser, generator, inputHandler, outputHandler);
             }
         } catch (IOException e) {
             throw new UncheckedIOException("Failed Processing Flow Configuration", e);
@@ -45,7 +44,7 @@ public class JsonFlowEncryptor extends AbstractFlowEncryptor {
     }
 
     private void processJsonByTokens(final JsonParser parser, final JsonGenerator generator,
-                                     final PropertyEncryptor inputEncryptor, final PropertyEncryptor outputEncryptor) throws IOException {
+                                     final PropertyValueHandler inputHandler, final PropertyValueHandler outputHandler) throws IOException {
         JsonToken token = parser.nextToken();
         while (token != null) {
             switch (token) {
@@ -71,9 +70,8 @@ public class JsonFlowEncryptor extends AbstractFlowEncryptor {
                     break;
                 case VALUE_STRING:
                     final String value = parser.getValueAsString();
-                    final Matcher matcher = ENCRYPTED_PATTERN.matcher(value);
-                    if (matcher.matches()) {
-                        generator.writeString(getOutputEncrypted(matcher.group(FIRST_GROUP), inputEncryptor, outputEncryptor));
+                    if (inputHandler.isEncoded(value)) {
+                        generator.writeString(getOutputEncrypted(value, inputHandler, outputHandler));
                     } else {
                         generator.writeString(value);
                     }

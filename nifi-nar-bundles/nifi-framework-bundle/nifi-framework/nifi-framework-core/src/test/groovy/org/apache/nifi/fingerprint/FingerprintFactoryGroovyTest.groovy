@@ -17,6 +17,8 @@
 package org.apache.nifi.fingerprint
 
 import org.apache.nifi.encrypt.PropertyEncryptor
+import org.apache.nifi.encrypt.PropertyValueHandler
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
 import org.apache.nifi.encrypt.SensitiveValueEncoder
 import org.apache.nifi.nar.ExtensionManager
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager
@@ -41,6 +43,7 @@ class FingerprintFactoryGroovyTest extends GroovyTestCase {
     private static PropertyEncryptor mockEncryptor = [
             encrypt: { String plaintext -> plaintext.reverse() },
             decrypt: { String cipherText -> cipherText.reverse() }] as PropertyEncryptor
+    private static PropertyValueHandler mockHandler = new PropertyValueHandlerBuilder().setEncryptor(mockEncryptor).build();
     private static SensitiveValueEncoder mockSensitiveValueEncoder = [
             getEncoded: { String plaintext -> "[MASKED] (${plaintext.sha256()})".toString() }] as SensitiveValueEncoder
     private static ExtensionManager extensionManager = new StandardExtensionDiscoveringManager()
@@ -87,7 +90,7 @@ class FingerprintFactoryGroovyTest extends GroovyTestCase {
         logger.info("Read initial flow: ${initialFlowXML[0..<100]}...")
 
         // Create the FingerprintFactory with collaborators
-        FingerprintFactory fingerprintFactory = new FingerprintFactory(mockEncryptor, extensionManager, mockSensitiveValueEncoder)
+        FingerprintFactory fingerprintFactory = new FingerprintFactory(mockHandler, extensionManager, mockSensitiveValueEncoder)
 
         // Act
 

@@ -40,7 +40,7 @@ import org.apache.nifi.controller.reporting.LogComponentStatuses;
 import org.apache.nifi.controller.repository.CounterRepository;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.engine.FlowEngine;
 import org.apache.nifi.extensions.ExtensionRepository;
 import org.apache.nifi.flow.VersionedExternalFlowMetadata;
@@ -106,7 +106,7 @@ public class StandardStatelessEngine implements StatelessEngine {
     private final ExtensionManager extensionManager;
     private final BulletinRepository bulletinRepository;
     private final StatelessStateManagerProvider stateManagerProvider;
-    private final PropertyEncryptor propertyEncryptor;
+    private final PropertyValueHandler propertyHandler;
     private final FlowRegistryClient flowRegistryClient;
     private final VariableRegistry rootVariableRegistry;
     private final ProcessScheduler processScheduler;
@@ -132,7 +132,7 @@ public class StandardStatelessEngine implements StatelessEngine {
         this.extensionManager = requireNonNull(builder.extensionManager, "Extension Manager must be provided");
         this.bulletinRepository = requireNonNull(builder.bulletinRepository, "Bulletin Repository must be provided");
         this.stateManagerProvider = requireNonNull(builder.stateManagerProvider, "State Manager Provider must be provided");
-        this.propertyEncryptor = requireNonNull(builder.propertyEncryptor, "Encryptor must be provided");
+        this.propertyHandler = requireNonNull(builder.propertyHandler, "Sensitive Property Value Handler must be provided");
         this.flowRegistryClient = requireNonNull(builder.flowRegistryClient, "Flow Registry Client must be provided");
         this.rootVariableRegistry = requireNonNull(builder.variableRegistry, "Variable Registry must be provided");
         this.processScheduler = requireNonNull(builder.processScheduler, "Process Scheduler must be provided");
@@ -602,8 +602,8 @@ public class StandardStatelessEngine implements StatelessEngine {
     }
 
     @Override
-    public PropertyEncryptor getPropertyEncryptor() {
-        return propertyEncryptor;
+    public PropertyValueHandler getPropertyValueHandler() {
+        return propertyHandler;
     }
 
     @Override
@@ -670,7 +670,7 @@ public class StandardStatelessEngine implements StatelessEngine {
         private ExtensionManager extensionManager = null;
         private BulletinRepository bulletinRepository = null;
         private StatelessStateManagerProvider stateManagerProvider = null;
-        private PropertyEncryptor propertyEncryptor = null;
+        private PropertyValueHandler propertyHandler = null;
         private FlowRegistryClient flowRegistryClient = null;
         private VariableRegistry variableRegistry = null;
         private ProcessScheduler processScheduler = null;
@@ -696,8 +696,8 @@ public class StandardStatelessEngine implements StatelessEngine {
             return this;
         }
 
-        public Builder encryptor(final PropertyEncryptor propertyEncryptor) {
-            this.propertyEncryptor = propertyEncryptor;
+        public Builder handler(final PropertyValueHandler propertyHandler) {
+            this.propertyHandler = propertyHandler;
             return this;
         }
 

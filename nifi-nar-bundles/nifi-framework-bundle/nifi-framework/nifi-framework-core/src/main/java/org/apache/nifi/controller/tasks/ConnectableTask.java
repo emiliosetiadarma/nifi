@@ -36,7 +36,7 @@ import org.apache.nifi.controller.repository.scheduling.ConnectableProcessContex
 import org.apache.nifi.controller.scheduling.LifecycleState;
 import org.apache.nifi.controller.scheduling.RepositoryContextFactory;
 import org.apache.nifi.controller.scheduling.SchedulingAgent;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.nar.NarCloseable;
 import org.apache.nifi.processor.ProcessContext;
@@ -78,14 +78,14 @@ public class ConnectableTask {
         this.numRelationships = connectable.getRelationships().size();
         this.flowController = flowController;
 
-        final PropertyEncryptor encryptor = flowController.getEncryptor();
+        final PropertyValueHandler handler = flowController.getHandler();
 
         final StateManager stateManager = new TaskTerminationAwareStateManager(flowController.getStateManagerProvider().getStateManager(connectable.getIdentifier()), scheduleState::isTerminated);
         if (connectable instanceof ProcessorNode) {
             processContext = new StandardProcessContext(
-                    (ProcessorNode) connectable, flowController.getControllerServiceProvider(), encryptor, stateManager, scheduleState::isTerminated, flowController);
+                    (ProcessorNode) connectable, flowController.getControllerServiceProvider(), handler, stateManager, scheduleState::isTerminated, flowController);
         } else {
-            processContext = new ConnectableProcessContext(connectable, encryptor, stateManager);
+            processContext = new ConnectableProcessContext(connectable, handler, stateManager);
         }
 
         repositoryContext = contextFactory.newProcessContext(connectable, new AtomicLong(0L));

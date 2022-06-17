@@ -27,6 +27,7 @@ import org.apache.nifi.controller.flow.VersionedFlowEncodingVersion;
 import org.apache.nifi.controller.flow.VersionedRegistry;
 import org.apache.nifi.controller.flow.VersionedTemplate;
 import org.apache.nifi.controller.service.ControllerServiceNode;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.ScheduledState;
 import org.apache.nifi.flow.VersionedControllerService;
 import org.apache.nifi.flow.VersionedProcessGroup;
@@ -40,7 +41,6 @@ import org.apache.nifi.flow.VersionedParameterContext;
 import org.apache.nifi.registry.flow.mapping.ComponentIdLookup;
 import org.apache.nifi.registry.flow.mapping.FlowMappingOptions;
 import org.apache.nifi.registry.flow.mapping.NiFiRegistryFlowMapper;
-import org.apache.nifi.registry.flow.mapping.SensitiveValueEncryptor;
 import org.apache.nifi.registry.flow.mapping.VersionedComponentStateLookup;
 import org.apache.nifi.web.api.dto.TemplateDTO;
 
@@ -57,7 +57,7 @@ public class VersionedDataflowMapper {
     private final NiFiRegistryFlowMapper flowMapper;
     private final ScheduledStateLookup stateLookup;
 
-    public VersionedDataflowMapper(final FlowController flowController, final ExtensionManager extensionManager, final SensitiveValueEncryptor encryptor, final ScheduledStateLookup stateLookup) {
+    public VersionedDataflowMapper(final FlowController flowController, final ExtensionManager extensionManager, final PropertyValueHandler handler, final ScheduledStateLookup stateLookup) {
         this.flowController = flowController;
         this.stateLookup = stateLookup;
 
@@ -67,7 +67,7 @@ public class VersionedDataflowMapper {
             .mapSensitiveConfiguration(true)
             .mapPropertyDescriptors(false)
             .stateLookup(versionedComponentStateLookup)
-            .sensitiveValueEncryptor(encryptor)
+            .propertyValueHandler(handler)
             .componentIdLookup(ComponentIdLookup.VERSIONED_OR_GENERATE)
             .mapInstanceIdentifiers(true)
             .mapControllerServiceReferencesToVersionedId(false)

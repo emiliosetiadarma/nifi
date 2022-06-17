@@ -25,7 +25,7 @@ import org.apache.nifi.controller.serialization.FlowSerializationException;
 import org.apache.nifi.controller.serialization.ScheduledStateLookup;
 import org.apache.nifi.controller.serialization.StandardFlowSerializer;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.events.VolatileBulletinRepository;
 import org.apache.nifi.nar.ExtensionDiscoveringManager;
 import org.apache.nifi.nar.ExtensionManager;
@@ -69,7 +69,7 @@ public class StandardFlowServiceTest {
     private FlowFileEventRepository mockFlowFileEventRepository;
     private Authorizer authorizer;
     private AuditService mockAuditService;
-    private PropertyEncryptor mockEncryptor;
+    private PropertyValueHandler mockHandler;
     private RevisionManager revisionManager;
     private VariableRegistry variableRegistry;
     private ExtensionManager extensionManager;
@@ -92,10 +92,11 @@ public class StandardFlowServiceTest {
         mockAuditService = mock(AuditService.class);
         revisionManager = mock(RevisionManager.class);
         extensionManager = mock(ExtensionDiscoveringManager.class);
-        flowController = FlowController.createStandaloneInstance(mockFlowFileEventRepository, properties, authorizer, mockAuditService, mockEncryptor,
+        flowController = FlowController.createStandaloneInstance(mockFlowFileEventRepository, properties, authorizer, mockAuditService, mockHandler,
                                         new VolatileBulletinRepository(), variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
         flowService = StandardFlowService.createStandaloneInstance(flowController, properties, revisionManager, authorizer,
                 FlowSerializationStrategy.WRITE_XML_AND_JSON);
+
         statusHistoryRepository = mock(StatusHistoryRepository.class);
     }
 
