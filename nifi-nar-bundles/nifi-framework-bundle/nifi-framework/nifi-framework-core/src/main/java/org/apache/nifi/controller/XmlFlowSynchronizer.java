@@ -54,7 +54,7 @@ import org.apache.nifi.controller.service.ControllerServiceLoader;
 import org.apache.nifi.controller.service.ControllerServiceNode;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
 import org.apache.nifi.controller.service.ControllerServiceState;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.events.BulletinFactory;
 import org.apache.nifi.flowfile.FlowFilePrioritizer;
 import org.apache.nifi.groups.BundleUpdateStrategy;
@@ -187,7 +187,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
             final FlowInheritability bundleInheritability = bundleCompatibilityCheck.checkInheritability(existingDataFlow, proposedFlow, controller);
             if (!bundleInheritability.isInheritable()) {
                 throw new UninheritableFlowException("Proposed flow could not be inherited because it references one or more Bundles that are not available in this NiFi instance: "
-                    + bundleInheritability.getExplanation());
+                        + bundleInheritability.getExplanation());
             }
 
             logger.debug("Bundle Compatibility check passed");
@@ -206,7 +206,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
                 }
 
                 logger.debug("Proposed flow is not directly inheritable. However, the Controller has not been synchronized yet, " +
-                    "so will check if the existing flow can be backed up and replaced by the proposed flow.");
+                        "so will check if the existing flow can be backed up and replaced by the proposed flow.");
 
                 final FlowInheritabilityCheck connectionMissingCheck = new ConnectionMissingCheck(null);
                 final FlowInheritability connectionMissingInheritability = connectionMissingCheck.checkInheritability(existingDataFlow, proposedFlow, controller);
@@ -216,7 +216,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
                     logger.debug("Proposed flow contains all connections that currently have data queued. Will backup existing flow and replace, provided all other checks pass");
                 } else {
                     throw new UninheritableFlowException("Proposed flow is not inheritable by the flow controller and cannot completely replace the current flow due to: "
-                        + connectionMissingInheritability.getExplanation());
+                            + connectionMissingInheritability.getExplanation());
                 }
             }
         }
@@ -242,7 +242,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
             } else {
                 if (!authorizerInheritability.isInheritable() && authorizerInheritability.getExplanation() != null) {
                     throw new UninheritableFlowException("Proposed Authorizer is not inheritable by the Flow Controller because NiFi has already started the dataflow " +
-                        "and Authorizer has differences: " + authorizerInheritability.getExplanation());
+                            "and Authorizer has differences: " + authorizerInheritability.getExplanation());
                 }
 
                 logger.debug("Authorizer inheritability check passed");
@@ -253,7 +253,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         try {
             if (backupAndPurge) {
                 logger.warn("Proposed flow cannot be directly inherited. However, all data that is queued in this instance is queued in a connection that exists in the Proposed flow. As a " +
-                    "result, the existing flow will be backed up and replaced with the proposed flow.");
+                        "result, the existing flow will be backed up and replaced with the proposed flow.");
                 final File backupFile = getFlowBackupFile();
 
                 try {
@@ -375,7 +375,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         final boolean flowAlreadySynchronized = controller.isFlowSynchronized();
         final FlowManager flowManager = controller.getFlowManager();
 
-        final PropertyEncryptor encryptor = controller.getEncryptor();
+        final PropertyValueHandler handler = controller.getHandler();
 
         // get the root element
         final Element rootElement = (Element) configuration.getElementsByTagName("flowController").item(0);
@@ -416,7 +416,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
                 if (parameterContextsElement != null) {
                     final List<Element> contextElements = DomUtils.getChildElementsByTagName(parameterContextsElement, "parameterContext");
                     for (final Element contextElement : contextElements) {
-                        final ParameterContextDTO parameterContextDto = FlowFromDOMFactory.getParameterContext(contextElement, encryptor);
+                        final ParameterContextDTO parameterContextDto = FlowFromDOMFactory.getParameterContext(contextElement, handler);
                         createParameterContext(parameterContextDto, controller.getFlowManager());
                     }
                 }
@@ -456,7 +456,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         // get/create all the reporting task nodes and DTOs, but don't apply their scheduled state yet
         final Map<ReportingTaskNode, ReportingTaskDTO> reportingTaskNodesToDTOs = new HashMap<>();
         for (final Element taskElement : reportingTaskElements) {
-            final ReportingTaskDTO dto = FlowFromDOMFactory.getReportingTask(taskElement, encryptor, encodingVersion);
+            final ReportingTaskDTO dto = FlowFromDOMFactory.getReportingTask(taskElement, handler, encodingVersion);
             final ReportingTaskNode reportingTask = getOrCreateReportingTask(controller, dto, flowAlreadySynchronized, existingFlowEmpty);
             reportingTaskNodesToDTOs.put(reportingTask, dto);
         }
@@ -472,7 +472,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
                 // Controller Service.
                 final ProcessGroup group = (encodingVersion == null) ? rootGroup : null;
                 final Map<ControllerServiceNode, Element> controllerServices = ControllerServiceLoader.loadControllerServices(
-                    serviceElements, controller, group, encryptor, encodingVersion);
+                    serviceElements, controller, group, handler, encodingVersion);
 
                 // If we are moving controller services to the root group we also need to see if any reporting tasks
                 // reference them, and if so we need to clone the CS and update the reporting task reference
@@ -505,7 +505,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
                 }
 
                 // enable all the original controller services
-                ControllerServiceLoader.enableControllerServices(controllerServices, controller, encryptor, autoResumeState, encodingVersion);
+                ControllerServiceLoader.enableControllerServices(controllerServices, controller, handler, autoResumeState, encodingVersion);
             }
         }
 
@@ -656,7 +656,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
 
         logger.trace("Parsing process group from DOM");
         final Element rootGroupElement = (Element) rootElement.getElementsByTagName("rootGroup").item(0);
-        final ProcessGroupDTO rootGroupDto = FlowFromDOMFactory.getProcessGroup(null, rootGroupElement, null, encodingVersion);
+        final ProcessGroupDTO rootGroupDto = FlowFromDOMFactory.getProcessGroup(null, rootGroupElement, (PropertyValueHandler) null, encodingVersion);
         return isEmpty(rootGroupDto);
     }
 
@@ -829,10 +829,10 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         // get the parent group ID
         final String parentId = (parentGroup == null) ? null : parentGroup.getIdentifier();
 
-        final PropertyEncryptor encryptor = controller.getEncryptor();
+        final PropertyValueHandler handler = controller.getHandler();
 
         // get the process group
-        final ProcessGroupDTO processGroupDto = FlowFromDOMFactory.getProcessGroup(parentId, processGroupElement, encryptor, encodingVersion);
+        final ProcessGroupDTO processGroupDto = FlowFromDOMFactory.getProcessGroup(parentId, processGroupElement, handler, encodingVersion);
         final FlowManager flowManager = controller.getFlowManager();
 
         // update the process group
@@ -864,7 +864,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         final Set<ControllerServiceNode> toEnable = new HashSet<>();
 
         for (final Element serviceElement : controllerServiceNodeList) {
-            final ControllerServiceDTO dto = FlowFromDOMFactory.getControllerService(serviceElement, encryptor, encodingVersion);
+            final ControllerServiceDTO dto = FlowFromDOMFactory.getControllerService(serviceElement, handler, encodingVersion);
             final ControllerServiceNode serviceNode = processGroup.getControllerService(dto.getId());
 
             // Check if the controller service is in the correct state. We consider it the correct state if
@@ -895,7 +895,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         // processors & ports cannot be updated - they must be the same. Except for the scheduled state.
         final List<Element> processorNodeList = getChildrenByTagName(processGroupElement, "processor");
         for (final Element processorElement : processorNodeList) {
-            final ProcessorDTO dto = FlowFromDOMFactory.getProcessor(processorElement, encryptor, encodingVersion);
+            final ProcessorDTO dto = FlowFromDOMFactory.getProcessor(processorElement, handler, encodingVersion);
             final ProcessorNode procNode = processGroup.getProcessor(dto.getId());
 
             final ScheduledState procState = getScheduledState(procNode, controller);
@@ -1005,7 +1005,7 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         // Update scheduled state of Remote Group Ports
         final List<Element> remoteProcessGroupList = getChildrenByTagName(processGroupElement, "remoteProcessGroup");
         for (final Element remoteGroupElement : remoteProcessGroupList) {
-            final RemoteProcessGroupDTO remoteGroupDto = FlowFromDOMFactory.getRemoteProcessGroup(remoteGroupElement, encryptor);
+            final RemoteProcessGroupDTO remoteGroupDto = FlowFromDOMFactory.getRemoteProcessGroup(remoteGroupElement, handler);
             final RemoteProcessGroup rpg = processGroup.getRemoteProcessGroup(remoteGroupDto.getId());
 
             // input ports
@@ -1301,10 +1301,10 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
         // get the parent group ID
         final String parentId = (parentGroup == null) ? null : parentGroup.getIdentifier();
         final FlowManager flowManager = controller.getFlowManager();
-        final PropertyEncryptor encryptor = controller.getEncryptor();
+        final PropertyValueHandler handler = controller.getHandler();
 
         // add the process group
-        final ProcessGroupDTO processGroupDTO = FlowFromDOMFactory.getProcessGroup(parentId, processGroupElement, encryptor, encodingVersion);
+        final ProcessGroupDTO processGroupDTO = FlowFromDOMFactory.getProcessGroup(parentId, processGroupElement, handler, encodingVersion);
         final ProcessGroup processGroup = flowManager.createProcessGroup(processGroupDTO.getId());
         processGroup.setComments(processGroupDTO.getComments());
         processGroup.setVersionedComponentId(processGroupDTO.getVersionedComponentId());
@@ -1399,18 +1399,18 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
 
     private void addControllerServices(final Element processGroupElement, final ProcessGroup processGroup, final FlowController flowController, final FlowEncodingVersion encodingVersion) {
         final List<Element> serviceNodeList = getChildrenByTagName(processGroupElement, "controllerService");
-        final PropertyEncryptor encryptor = flowController.getEncryptor();
+        final PropertyValueHandler handler = flowController.getHandler();
         if (!serviceNodeList.isEmpty()) {
-            final Map<ControllerServiceNode, Element> controllerServices = ControllerServiceLoader.loadControllerServices(serviceNodeList, flowController, processGroup, encryptor, encodingVersion);
-            ControllerServiceLoader.enableControllerServices(controllerServices, flowController, encryptor, autoResumeState, encodingVersion);
+            final Map<ControllerServiceNode, Element> controllerServices = ControllerServiceLoader.loadControllerServices(serviceNodeList, flowController, processGroup, handler, encodingVersion);
+            ControllerServiceLoader.enableControllerServices(controllerServices, flowController, handler, autoResumeState, encodingVersion);
         }
     }
 
     private void addProcessors(final Element processGroupElement, final ProcessGroup processGroup, final FlowController flowController, final FlowEncodingVersion encodingVersion) {
         final List<Element> processorNodeList = getChildrenByTagName(processGroupElement, "processor");
-        final PropertyEncryptor encryptor = flowController.getEncryptor();
+        final PropertyValueHandler handler = flowController.getHandler();
         for (final Element processorElement : processorNodeList) {
-            final ProcessorDTO processorDTO = FlowFromDOMFactory.getProcessor(processorElement, encryptor, encodingVersion);
+            final ProcessorDTO processorDTO = FlowFromDOMFactory.getProcessor(processorElement, handler, encodingVersion);
 
             BundleCoordinate coordinate;
             try {
@@ -1561,9 +1561,9 @@ public class XmlFlowSynchronizer implements FlowSynchronizer {
 
     private void addRemoteProcessGroups(final Element processGroupElement, final ProcessGroup processGroup, final FlowController controller) {
         final List<Element> remoteProcessGroupNodeList = getChildrenByTagName(processGroupElement, "remoteProcessGroup");
-        final PropertyEncryptor encryptor = controller.getEncryptor();
+        final PropertyValueHandler handler = controller.getHandler();
         for (final Element remoteProcessGroupElement : remoteProcessGroupNodeList) {
-            final RemoteProcessGroupDTO remoteGroupDto = FlowFromDOMFactory.getRemoteProcessGroup(remoteProcessGroupElement, encryptor);
+            final RemoteProcessGroupDTO remoteGroupDto = FlowFromDOMFactory.getRemoteProcessGroup(remoteProcessGroupElement, handler);
             final RemoteProcessGroup remoteGroup = controller.getFlowManager().createRemoteProcessGroup(remoteGroupDto.getId(), remoteGroupDto.getTargetUris());
             remoteGroup.setVersionedComponentId(remoteGroupDto.getVersionedComponentId());
             remoteGroup.setComments(remoteGroupDto.getComments());

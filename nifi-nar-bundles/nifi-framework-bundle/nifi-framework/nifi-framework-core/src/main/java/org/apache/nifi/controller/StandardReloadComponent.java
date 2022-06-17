@@ -69,7 +69,7 @@ public class StandardReloadComponent implements ReloadComponent {
 
         final StateManager stateManager = flowController.getStateManagerProvider().getStateManager(id);
         final StandardProcessContext processContext = new StandardProcessContext(existingNode, flowController.getControllerServiceProvider(),
-            flowController.getEncryptor(), stateManager, () -> false, flowController);
+            flowController.getHandler(), stateManager, () -> false, flowController);
 
         // call OnRemoved for the existing processor using the previous instance class loader
         try (final NarCloseable x = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {

@@ -18,8 +18,8 @@ package org.apache.nifi.tests.system.clustering;
 
 import org.apache.nifi.controller.serialization.FlowEncodingVersion;
 import org.apache.nifi.controller.serialization.FlowFromDOMFactory;
-import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
 import org.apache.nifi.tests.system.InstanceConfiguration;
 import org.apache.nifi.tests.system.NiFiInstance;
 import org.apache.nifi.tests.system.NiFiInstanceFactory;
@@ -162,10 +162,10 @@ public class JoinClusterWithDifferentFlow extends NiFiSystemIT {
         final FlowEncodingVersion encodingVersion = FlowEncodingVersion.parse(rootElement);
 
         final NiFiInstance node2 = getNiFiInstance().getNodeInstance(2);
-        final PropertyEncryptor encryptor = createEncryptorFromProperties(node2.getProperties());
         final Element rootGroupElement = (Element) rootElement.getElementsByTagName("rootGroup").item(0);
 
-        final ProcessGroupDTO groupDto = FlowFromDOMFactory.getProcessGroup(null, rootGroupElement, encryptor, encodingVersion);
+        final PropertyValueHandler handler = createHandlerFromProperties(node2.getProperties());
+        final ProcessGroupDTO groupDto = FlowFromDOMFactory.getProcessGroup(null, rootGroupElement, handler, encodingVersion);
         final Set<ProcessGroupDTO> childGroupDtos = groupDto.getContents().getProcessGroups();
         assertEquals(1, childGroupDtos.size());
 
@@ -255,9 +255,9 @@ public class JoinClusterWithDifferentFlow extends NiFiSystemIT {
         assertFalse(firstService.getId().endsWith("00"));
     }
 
-    private PropertyEncryptor createEncryptorFromProperties(Properties properties) {
+    private PropertyValueHandler createHandlerFromProperties(Properties properties) {
         final NiFiProperties niFiProperties = NiFiProperties.createBasicNiFiProperties(null, properties);
-        return PropertyEncryptorFactory.getPropertyEncryptor(niFiProperties);
+        return PropertyValueHandlerFactory.getPropertyValueHandler(niFiProperties);
     }
 
     private String readFlow(final File file) throws IOException {

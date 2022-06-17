@@ -19,6 +19,8 @@ package org.apache.nifi.registry.service;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
+import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.registry.bucket.Bucket;
 import org.apache.nifi.registry.bucket.BucketItem;
 import org.apache.nifi.registry.db.entity.BucketEntity;
@@ -72,7 +74,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -930,8 +931,9 @@ public class RegistryService {
         final ComparableDataFlow comparableFlowB = new StandardComparableDataFlow(String.format("Version %d", newer), flowContentsB);
 
         // Compare the two versions of the flow
+        final PropertyValueHandler handler = new PassthroughPropertyValueHandler();
         final FlowComparator flowComparator = new StandardFlowComparator(comparableFlowA, comparableFlowB,
-                null, new ConciseEvolvingDifferenceDescriptor(), Function.identity(), VersionedComponent::getIdentifier);
+                null, new ConciseEvolvingDifferenceDescriptor(), handler, VersionedComponent::getIdentifier);
         final FlowComparison flowComparison = flowComparator.compare();
 
         final VersionedFlowDifference result = new VersionedFlowDifference();

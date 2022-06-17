@@ -16,20 +16,12 @@
  */
 package org.apache.nifi.flow.encryptor;
 
-import org.apache.nifi.encrypt.PropertyEncryptor;
-
-import java.util.regex.Pattern;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 
 public abstract class AbstractFlowEncryptor implements FlowEncryptor {
-    protected static final Pattern ENCRYPTED_PATTERN = Pattern.compile("^enc\\{([^}]+?)}$");
-
-    protected static final int FIRST_GROUP = 1;
-
-    protected static final String ENCRYPTED_FORMAT = "enc{%s}";
-
-    protected String getOutputEncrypted(final String inputEncrypted, final PropertyEncryptor inputEncryptor, final PropertyEncryptor outputEncryptor) {
-        final String inputDecrypted = inputEncryptor.decrypt(inputEncrypted);
-        final String outputEncrypted = outputEncryptor.encrypt(inputDecrypted);
-        return String.format(ENCRYPTED_FORMAT, outputEncrypted);
+    protected String getOutputEncrypted(final String inputEncrypted, final PropertyValueHandler inputHandler, final PropertyValueHandler outputHandler) {
+        final String inputDecrypted = inputHandler.decode(inputEncrypted);
+        final String outputEncrypted = outputHandler.encode(inputDecrypted);
+        return outputEncrypted;
     }
 }

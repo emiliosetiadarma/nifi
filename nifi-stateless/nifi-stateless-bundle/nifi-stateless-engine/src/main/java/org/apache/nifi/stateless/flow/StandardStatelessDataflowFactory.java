@@ -32,8 +32,10 @@ import org.apache.nifi.controller.scheduling.StatelessProcessScheduler;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
 import org.apache.nifi.controller.service.StandardControllerServiceProvider;
 import org.apache.nifi.encrypt.PropertyEncryptionMethod;
-import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyEncryptorBuilder;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
+import org.apache.nifi.encrypt.PropertyValueHandlerConfigurationContext;
+import org.apache.nifi.encrypt.StandardPropertyValueHandlerConfigurationContext;
 import org.apache.nifi.events.BulletinFactory;
 import org.apache.nifi.events.EventReporter;
 import org.apache.nifi.events.VolatileBulletinRepository;
@@ -147,30 +149,15 @@ public class StandardStatelessDataflowFactory implements StatelessDataflowFactor
             extensionRepository.initialize();
 
             final VariableRegistry variableRegistry = VariableRegistry.EMPTY_REGISTRY;
-            final PropertyEncryptor lazyInitializedEncryptor = new PropertyEncryptor() {
-                private PropertyEncryptor created = null;
 
-                @Override
-                public String encrypt(final String property) {
-                    return getEncryptor().encrypt(property);
-                }
+            final PropertyValueHandlerConfigurationContext context = new StandardPropertyValueHandlerConfigurationContext(
+                    engineConfiguration.getSensitivePropsKey(),
+                    PropertyEncryptionMethod.NIFI_PBKDF2_AES_GCM_256.toString()
+            );
 
-                @Override
-                public String decrypt(final String encryptedProperty) {
-                    return getEncryptor().decrypt(encryptedProperty);
-                }
-
-                private synchronized PropertyEncryptor getEncryptor() {
-                    if (created != null) {
-                        return created;
-                    }
-
-                    created = new PropertyEncryptorBuilder(engineConfiguration.getSensitivePropsKey())
-                            .setAlgorithm(PropertyEncryptionMethod.NIFI_PBKDF2_AES_GCM_256.toString())
-                            .build();
-                    return created;
-                }
-            };
+            final PropertyValueHandler lazyInitializedHandler = new PropertyValueHandlerBuilder()
+                    .setContext(context)
+                    .build();
 
             final CounterRepository counterRepo = new StandardCounterRepository();
 
@@ -183,7 +170,7 @@ public class StandardStatelessDataflowFactory implements StatelessDataflowFactor
 
             final StatelessEngine statelessEngine = new StandardStatelessEngine.Builder()
                     .bulletinRepository(bulletinRepository)
-                    .encryptor(lazyInitializedEncryptor)
+                    .handler(lazyInitializedHandler)
                     .extensionManager(extensionManager)
                     .flowRegistryClient(flowRegistryClient)
                     .stateManagerProvider(stateManagerProvider)
@@ -200,7 +187,7 @@ public class StandardStatelessDataflowFactory implements StatelessDataflowFactor
             final StatelessFlowManager flowManager = new StatelessFlowManager(flowFileEventRepo, parameterContextManager, statelessEngine, () -> true, sslContext, bulletinRepository);
             final ControllerServiceProvider controllerServiceProvider = new StandardControllerServiceProvider(processScheduler, bulletinRepository, flowManager, extensionManager);
 
-            final ProcessContextFactory rawProcessContextFactory = new StatelessProcessContextFactory(controllerServiceProvider, lazyInitializedEncryptor, stateManagerProvider);
+            final ProcessContextFactory rawProcessContextFactory = new StatelessProcessContextFactory(controllerServiceProvider, lazyInitializedHandler, stateManagerProvider);
             final ProcessContextFactory processContextFactory = new CachingProcessContextFactory(rawProcessContextFactory);
             contentRepo = createContentRepository(engineConfiguration);
             flowFileRepo = new StatelessFlowFileRepository();

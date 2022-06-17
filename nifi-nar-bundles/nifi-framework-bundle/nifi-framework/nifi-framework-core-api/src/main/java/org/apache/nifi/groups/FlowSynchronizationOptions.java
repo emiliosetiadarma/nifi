@@ -18,6 +18,8 @@
 package org.apache.nifi.groups;
 
 import org.apache.nifi.flow.VersionedComponent;
+import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 
 import java.time.Duration;
 import java.util.function.Function;
@@ -26,7 +28,7 @@ public class FlowSynchronizationOptions {
     private final ComponentIdGenerator componentIdGenerator;
     private final Function<VersionedComponent, String> componentComparisonIdLookup;
     private final ComponentScheduler componentScheduler;
-    private final PropertyDecryptor propertyDecryptor;
+    private final PropertyValueHandler handler;
     private final boolean ignoreLocalModifications;
     private final boolean updateSettings;
     private final boolean updateDescendantVersionedFlows;
@@ -40,7 +42,7 @@ public class FlowSynchronizationOptions {
         this.componentIdGenerator = builder.componentIdGenerator;
         this.componentComparisonIdLookup = builder.componentComparisonIdLookup;
         this.componentScheduler = builder.componentScheduler;
-        this.propertyDecryptor = builder.propertyDecryptor;
+        this.handler = builder.handler;
         this.ignoreLocalModifications = builder.ignoreLocalModifications;
         this.updateSettings = builder.updateSettings;
         this.updateDescendantVersionedFlows = builder.updateDescendantVersionedFlows;
@@ -87,8 +89,8 @@ public class FlowSynchronizationOptions {
         return updateRpgUrls;
     }
 
-    public PropertyDecryptor getPropertyDecryptor() {
-        return propertyDecryptor;
+    public PropertyValueHandler getPropertyValueHandler() {
+        return handler;
     }
 
     public Duration getComponentStopTimeout() {
@@ -109,7 +111,7 @@ public class FlowSynchronizationOptions {
         private boolean updateGroupVersionControlSnapshot = true;
         private boolean updateExistingVariables = false;
         private boolean updateRpgUrls = false;
-        private PropertyDecryptor propertyDecryptor = value -> value;
+        private PropertyValueHandler handler = new PassthroughPropertyValueHandler();
         private Duration componentStopTimeout = Duration.ofSeconds(30);
         private ComponentStopTimeoutAction timeoutAction = ComponentStopTimeoutAction.THROW_TIMEOUT_EXCEPTION;
 
@@ -217,13 +219,13 @@ public class FlowSynchronizationOptions {
         }
 
         /**
-         * Specifies the decryptor to use for sensitive properties
+         * Specifies the Property Value Handler to use for sensitive properties
          *
-         * @param decryptor the decryptor to use
+         * @param handler the PropertyValueHandler to use
          * @return the builder
          */
-        public Builder propertyDecryptor(final PropertyDecryptor decryptor) {
-            this.propertyDecryptor = decryptor;
+        public Builder propertyValueHandler(final PropertyValueHandler handler) {
+            this.handler = handler;
             return this;
         }
 
@@ -273,7 +275,7 @@ public class FlowSynchronizationOptions {
             builder.updateGroupVersionControlSnapshot = options.isUpdateGroupVersionControlSnapshot();
             builder.updateExistingVariables = options.isUpdateExistingVariables();
             builder.updateRpgUrls = options.isUpdateRpgUrls();
-            builder.propertyDecryptor = options.getPropertyDecryptor();
+            builder.handler = options.getPropertyValueHandler();
             builder.componentStopTimeout = options.getComponentStopTimeout();
             builder.timeoutAction = options.getComponentStopTimeoutAction();
 

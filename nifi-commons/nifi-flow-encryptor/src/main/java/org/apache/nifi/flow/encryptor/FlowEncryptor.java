@@ -16,7 +16,7 @@
  */
 package org.apache.nifi.flow.encryptor;
 
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,8 +30,8 @@ public interface FlowEncryptor {
      *
      * @param inputStream Flow Configuration Input Stream
      * @param outputStream Flow Configuration Output Stream encrypted using new password
-     * @param inputEncryptor Property Encryptor for Input Configuration
-     * @param outputEncryptor Property Encryptor for Output Configuration
+     * @param inputHandler Property Value Handler for Input Configuration
+     * @param outputHandler Property Value Handler for Output Configuration
      */
-    void processFlow(InputStream inputStream, OutputStream outputStream, PropertyEncryptor inputEncryptor, PropertyEncryptor outputEncryptor);
+    void processFlow(InputStream inputStream, OutputStream outputStream, PropertyValueHandler inputHandler, PropertyValueHandler outputHandler);
 }

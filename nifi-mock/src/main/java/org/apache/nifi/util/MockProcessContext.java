@@ -28,6 +28,9 @@ import org.apache.nifi.components.state.StateManager;
 import org.apache.nifi.controller.ControllerService;
 import org.apache.nifi.controller.ControllerServiceLookup;
 import org.apache.nifi.controller.NodeTypeProvider;
+import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
+import org.apache.nifi.encrypt.ProcessContextPropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.Processor;
 import org.apache.nifi.processor.Relationship;
@@ -56,6 +59,7 @@ public class MockProcessContext extends MockControllerServiceLookup implements P
     private final Map<PropertyDescriptor, String> properties = new HashMap<>();
     private final StateManager stateManager;
     private final VariableRegistry variableRegistry;
+    private final PropertyValueHandler mockHandler = new ProcessContextPropertyValueHandler(new PassthroughPropertyValueHandler());
 
     private String annotationData = null;
     private boolean yieldCalled = false;
@@ -418,13 +422,13 @@ public class MockProcessContext extends MockControllerServiceLookup implements P
 
     @Override
     public String encrypt(final String unencrypted) {
-        return "enc{" + unencrypted + "}";
+        return mockHandler.encode(unencrypted);
     }
 
     @Override
     public String decrypt(final String encrypted) {
-        if (encrypted.startsWith("enc{") && encrypted.endsWith("}")) {
-            return encrypted.substring(4, encrypted.length() - 1);
+        if (mockHandler.isEncoded(encrypted)) {
+            return mockHandler.decode(encrypted);
         }
         return encrypted;
     }

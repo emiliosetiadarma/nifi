@@ -17,6 +17,7 @@
 
 package org.apache.nifi.registry.flow.diff;
 
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.VersionedComponent;
 import org.apache.nifi.flow.VersionedConnection;
 import org.apache.nifi.flow.VersionedControllerService;
@@ -59,18 +60,21 @@ public class StandardFlowComparator implements FlowComparator {
     private final ComparableDataFlow flowB;
     private final Set<String> externallyAccessibleServiceIds;
     private final DifferenceDescriptor differenceDescriptor;
-    private final Function<String, String> propertyDecryptor;
+    private final PropertyValueHandler handler;
     private final Function<VersionedComponent, String> idLookup;
 
-    public StandardFlowComparator(final ComparableDataFlow flowA, final ComparableDataFlow flowB, final Set<String> externallyAccessibleServiceIds,
-                                  final DifferenceDescriptor differenceDescriptor, final Function<String, String> propertyDecryptor, final Function<VersionedComponent, String> idLookup) {
+    public StandardFlowComparator(final ComparableDataFlow flowA, final ComparableDataFlow flowB,
+                                  final Set<String> externallyAccessibleServiceIds, final DifferenceDescriptor differenceDescriptor,
+                                  final PropertyValueHandler handler, final Function<VersionedComponent, String> idLookup) {
         this.flowA = flowA;
         this.flowB = flowB;
         this.externallyAccessibleServiceIds = externallyAccessibleServiceIds;
         this.differenceDescriptor = differenceDescriptor;
-        this.propertyDecryptor = propertyDecryptor;
+        this.handler = handler;
         this.idLookup = idLookup;
     }
+
+
 
     @Override
     public FlowComparison compare() {
@@ -273,12 +277,12 @@ public class StandardFlowComparator implements FlowComparator {
             return null;
         }
 
-        final boolean sensitive = (descriptor == null || descriptor.isSensitive()) && value.startsWith(ENCRYPTED_VALUE_PREFIX) && value.endsWith(ENCRYPTED_VALUE_SUFFIX);
+        final boolean sensitive = (descriptor == null || descriptor.isSensitive()) && handler.isEncoded(value);
         if (!sensitive) {
             return value;
         }
 
-        return propertyDecryptor.apply(value.substring(ENCRYPTED_VALUE_PREFIX.length(), value.length() - ENCRYPTED_VALUE_SUFFIX.length()));
+        return handler.decode(value);
     }
 
     private void compareProperties(final VersionedComponent componentA, final VersionedComponent componentB,

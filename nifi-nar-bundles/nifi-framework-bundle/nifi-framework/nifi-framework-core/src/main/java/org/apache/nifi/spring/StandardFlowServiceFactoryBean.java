@@ -22,7 +22,6 @@ import org.apache.nifi.cluster.protocol.impl.NodeProtocolSenderListener;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.FlowSerializationStrategy;
 import org.apache.nifi.controller.StandardFlowService;
-import org.apache.nifi.encrypt.PropertyEncryptor;
 import org.apache.nifi.services.FlowService;
 import org.apache.nifi.util.NiFiProperties;
 import org.apache.nifi.web.revision.RevisionManager;
@@ -40,7 +39,6 @@ public class StandardFlowServiceFactoryBean implements FactoryBean, ApplicationC
     private ApplicationContext applicationContext;
     private FlowService flowService;
     private NiFiProperties properties;
-    private PropertyEncryptor encryptor;
     private Authorizer authorizer;
 
     @Override
@@ -89,10 +87,6 @@ public class StandardFlowServiceFactoryBean implements FactoryBean, ApplicationC
 
     public void setProperties(NiFiProperties properties) {
         this.properties = properties;
-    }
-
-    public void setEncryptor(PropertyEncryptor encryptor) {
-        this.encryptor = encryptor;
     }
 
     public void setAuthorizer(Authorizer authorizer) {

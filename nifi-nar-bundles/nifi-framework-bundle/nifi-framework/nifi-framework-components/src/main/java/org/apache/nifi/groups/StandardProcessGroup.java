@@ -63,8 +63,9 @@ import org.apache.nifi.controller.service.ControllerServiceProvider;
 import org.apache.nifi.controller.service.ControllerServiceReference;
 import org.apache.nifi.controller.service.ControllerServiceState;
 import org.apache.nifi.controller.service.StandardConfigurationContext;
-import org.apache.nifi.encrypt.PropertyEncryptor;
 import org.apache.nifi.flow.VersionedComponent;
+import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.flow.VersionedExternalFlow;
 import org.apache.nifi.flow.VersionedProcessGroup;
 import org.apache.nifi.flow.synchronization.StandardVersionedComponentSynchronizer;
@@ -190,7 +191,7 @@ public final class StandardProcessGroup implements ProcessGroup {
     private final Map<String, Funnel> funnels = new HashMap<>();
     private final Map<String, ControllerServiceNode> controllerServices = new ConcurrentHashMap<>();
     private final Map<String, Template> templates = new HashMap<>();
-    private final PropertyEncryptor encryptor;
+    private final PropertyValueHandler handler;
     private final MutableVariableRegistry variableRegistry;
     private final VersionControlFields versionControlFields = new VersionControlFields();
     private volatile ParameterContext parameterContext;
@@ -213,9 +214,8 @@ public final class StandardProcessGroup implements ProcessGroup {
     private static final long DEFAULT_BACKPRESSURE_OBJECT = 10_000L;
     private static final String DEFAULT_BACKPRESSURE_DATA_SIZE = "1 GB";
 
-
     public StandardProcessGroup(final String id, final ControllerServiceProvider serviceProvider, final ProcessScheduler scheduler,
-                                final PropertyEncryptor encryptor, final ExtensionManager extensionManager,
+                                final PropertyValueHandler handler, final ExtensionManager extensionManager,
                                 final StateManagerProvider stateManagerProvider, final FlowManager flowManager, final FlowRegistryClient flowRegistryClient,
                                 final ReloadComponent reloadComponent, final MutableVariableRegistry variableRegistry, final NodeTypeProvider nodeTypeProvider,
                                 final NiFiProperties nifiProperties) {
@@ -225,7 +225,7 @@ public final class StandardProcessGroup implements ProcessGroup {
         this.parent = new AtomicReference<>();
         this.scheduler = scheduler;
         this.comments = new AtomicReference<>("");
-        this.encryptor = encryptor;
+        this.handler = handler;
         this.extensionManager = extensionManager;
         this.stateManagerProvider = stateManagerProvider;
         this.variableRegistry = variableRegistry;
@@ -557,7 +557,7 @@ public final class StandardProcessGroup implements ProcessGroup {
     private void shutdown(final ProcessGroup procGroup) {
         for (final ProcessorNode node : procGroup.getProcessors()) {
             try (final NarCloseable x = NarCloseable.withComponentNarLoader(extensionManager, node.getProcessor().getClass(), node.getIdentifier())) {
-                final StandardProcessContext processContext = new StandardProcessContext(node, controllerServiceProvider, encryptor,
+                final StandardProcessContext processContext = new StandardProcessContext(node, controllerServiceProvider, handler,
                     getStateManager(node.getIdentifier()), () -> false, nodeTypeProvider);
                 ReflectionUtils.quietlyInvokeMethodsWithAnnotation(OnShutdown.class, node.getProcessor(), processContext);
             }
@@ -1023,7 +1023,7 @@ public final class StandardProcessGroup implements ProcessGroup {
             }
 
             try (final NarCloseable x = NarCloseable.withComponentNarLoader(extensionManager, processor.getProcessor().getClass(), processor.getIdentifier())) {
-                final StandardProcessContext processContext = new StandardProcessContext(processor, controllerServiceProvider, encryptor,
+                final StandardProcessContext processContext = new StandardProcessContext(processor, controllerServiceProvider, handler,
                     getStateManager(processor.getIdentifier()), () -> false, nodeTypeProvider);
                 ReflectionUtils.quietlyInvokeMethodsWithAnnotation(OnRemoved.class, processor.getProcessor(), processContext);
             } catch (final Exception e) {
@@ -3779,6 +3779,12 @@ public final class StandardProcessGroup implements ProcessGroup {
         final ComponentScheduler defaultComponentScheduler = new DefaultComponentScheduler(controllerServiceProvider, stateLookup);
         final ComponentScheduler retainExistingStateScheduler = new RetainExistingStateComponentScheduler(this, defaultComponentScheduler);
 
+        final PropertyValueHandler nullHandler = new PassthroughPropertyValueHandler() {
+            @Override
+            public String decode(String value) {
+                return null;
+            }
+        };
         final FlowSynchronizationOptions synchronizationOptions = new FlowSynchronizationOptions.Builder()
             .componentIdGenerator(idGenerator)
             .componentComparisonIdLookup(VersionedComponent::getIdentifier)
@@ -3789,14 +3795,14 @@ public final class StandardProcessGroup implements ProcessGroup {
             .updateGroupVersionControlSnapshot(true)
             .updateExistingVariables(false)
             .updateRpgUrls(false)
-            .propertyDecryptor(value -> null)
+            .propertyValueHandler(nullHandler)
             .build();
 
         final FlowMappingOptions flowMappingOptions = new FlowMappingOptions.Builder()
             .mapSensitiveConfiguration(false)
             .mapPropertyDescriptors(true)
             .stateLookup(stateLookup)
-            .sensitiveValueEncryptor(null)
+            .propertyValueHandler(null)
             .componentIdLookup(ComponentIdLookup.VERSIONED_OR_GENERATE)
             .mapInstanceIdentifiers(false)
             .mapControllerServiceReferencesToVersionedId(true)
@@ -3806,7 +3812,7 @@ public final class StandardProcessGroup implements ProcessGroup {
     }
 
     private ProcessContext createProcessContext(final ProcessorNode processorNode) {
-        return new StandardProcessContext(processorNode, controllerServiceProvider, encryptor,
+        return new StandardProcessContext(processorNode, controllerServiceProvider, handler,
             stateManagerProvider.getStateManager(processorNode.getIdentifier()), () -> false, nodeTypeProvider);
     }
 
@@ -3907,7 +3913,7 @@ public final class StandardProcessGroup implements ProcessGroup {
             final ComparableDataFlow snapshotFlow = new StandardComparableDataFlow("Versioned Flow", vci.getFlowSnapshot());
 
             final FlowComparator flowComparator = new StandardFlowComparator(snapshotFlow, currentFlow, getAncestorServiceIds(),
-                new EvolvingDifferenceDescriptor(), encryptor::decrypt, VersionedComponent::getIdentifier);
+                    new EvolvingDifferenceDescriptor(), handler, VersionedComponent::getIdentifier);
             final FlowComparison comparison = flowComparator.compare();
             final Set<FlowDifference> differences = comparison.getDifferences().stream()
                 .filter(difference -> !FlowDifferenceFilters.isEnvironmentalChange(difference, versionedGroup, flowManager))

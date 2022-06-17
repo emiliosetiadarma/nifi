@@ -18,7 +18,7 @@ package org.apache.nifi.controller.inheritance;
 
 import org.apache.nifi.cluster.protocol.DataFlow;
 import org.apache.nifi.controller.FlowController;
-import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.encrypt.SensitiveValueEncoder;
 import org.apache.nifi.fingerprint.FingerprintFactory;
 import org.apache.nifi.nar.ExtensionManager;
@@ -37,11 +37,11 @@ public class FlowFingerprintCheck implements FlowInheritabilityCheck {
         final byte[] existingFlowBytes = existingFlow.getFlow();
         final byte[] proposedFlowBytes = proposedFlow.getFlow();
 
-        final PropertyEncryptor encryptor = flowController.getEncryptor();
+        final PropertyValueHandler handler = flowController.getHandler();
         final ExtensionManager extensionManager = flowController.getExtensionManager();
         final SensitiveValueEncoder sensitiveValueEncoder = flowController.getSensitiveValueEncoder();
 
-        final FingerprintFactory fingerprintFactory = new FingerprintFactory(encryptor, extensionManager, sensitiveValueEncoder);
+        final FingerprintFactory fingerprintFactory = new FingerprintFactory(handler, extensionManager, sensitiveValueEncoder);
         final String existingFlowFingerprintBeforeHash = fingerprintFactory.createFingerprint(existingFlowBytes, flowController);
         if (existingFlowFingerprintBeforeHash.trim().isEmpty()) {
             return null;  // no existing flow, so equivalent to proposed flow

@@ -35,6 +35,10 @@
         <constructor-arg ref="nifiProperties" />
     </bean>
 
+    <bean id="propertyValueHandler" class="org.apache.nifi.encrypt.PropertyValueHandlerFactory" factory-method="getPropertyValueHandler">
+        <constructor-arg ref="nifiProperties" />
+    </bean>
+
     <!-- flow registry -->
     <bean id="flowRegistryClient" class="org.apache.nifi.registry.flow.StandardFlowRegistryClient">
         <property name="properties" ref="nifiProperties" />
@@ -49,7 +53,7 @@
         <property name="properties" ref="nifiProperties"/>
         <property name="authorizer" ref="authorizer" />
         <property name="auditService" ref="auditService" />
-        <property name="encryptor" ref="propertyEncryptor" />
+        <property name="handler" ref="propertyValueHandler" />
         <property name="bulletinRepository" ref="bulletinRepository" />
         <property name="clusterCoordinator" ref="clusterCoordinator" />
         <property name="variableRegistry" ref="variableRegistry"/>
@@ -63,7 +67,6 @@
     <!-- flow service -->
     <bean id="flowService" class="org.apache.nifi.spring.StandardFlowServiceFactoryBean">
         <property name="properties" ref="nifiProperties"/>
-        <property name="encryptor" ref="propertyEncryptor" />
         <property name="authorizer" ref="authorizer" />
     </bean>
 

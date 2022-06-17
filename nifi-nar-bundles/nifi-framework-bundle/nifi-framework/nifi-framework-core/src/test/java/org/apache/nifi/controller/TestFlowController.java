@@ -45,8 +45,8 @@ import org.apache.nifi.controller.service.mock.DummyReportingTask;
 import org.apache.nifi.controller.service.mock.ServiceA;
 import org.apache.nifi.controller.service.mock.ServiceB;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
 import org.apache.nifi.groups.BundleUpdateStrategy;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.logging.LogLevel;
@@ -118,7 +118,7 @@ public class TestFlowController {
     private AbstractPolicyBasedAuthorizer authorizer;
     private FlowFileEventRepository flowFileEventRepo;
     private AuditService auditService;
-    private PropertyEncryptor encryptor;
+    private PropertyValueHandler handler;
     private NiFiProperties nifiProperties;
     private Bundle systemBundle;
     private BulletinRepository bulletinRepo;
@@ -137,7 +137,8 @@ public class TestFlowController {
         otherProps.put("nifi.remote.input.secure", "");
         final String propsFile = "src/test/resources/flowcontrollertest.nifi.properties";
         nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
-        encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
+
+        handler = PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties);
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);
@@ -187,7 +188,7 @@ public class TestFlowController {
 
         bulletinRepo = mock(BulletinRepository.class);
         controller = FlowController.createStandaloneInstance(flowFileEventRepo, nifiProperties, authorizer,
-                auditService, encryptor, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
+                auditService, handler, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
     }
 
     @After
@@ -510,7 +511,7 @@ public class TestFlowController {
 
         controller.shutdown(true);
         controller = FlowController.createStandaloneInstance(flowFileEventRepo, nifiProperties, authorizer,
-            auditService, encryptor, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
+            auditService, handler, bulletinRepo, variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
         controller.synchronize(standardFlowSynchronizer, proposedDataFlow, mock(FlowService.class), BundleUpdateStrategy.IGNORE_BUNDLE);
         assertEquals(authFingerprint, authorizer.getFingerprint());
     }
@@ -536,7 +537,6 @@ public class TestFlowController {
 
     @Test
     public void testSynchronizeFlowWhenExistingMissingComponentsAreDifferent() throws IOException {
-        final PropertyEncryptor encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
         final FlowSynchronizer standardFlowSynchronizer = new XmlFlowSynchronizer(nifiProperties, extensionManager);
 
         final ProcessorNode mockProcessorNode = mock(ProcessorNode.class);

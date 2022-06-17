@@ -27,6 +27,8 @@ import org.apache.nifi.controller.serialization.FlowSerializer;
 import org.apache.nifi.controller.serialization.ScheduledStateLookup;
 import org.apache.nifi.controller.serialization.StandardFlowSerializer;
 import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
 import org.apache.nifi.encrypt.SensitiveValueEncoder;
 import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.nar.ExtensionManager;
@@ -60,6 +62,7 @@ import static org.mockito.Mockito.when;
 public class FingerprintFactoryTest {
 
     private PropertyEncryptor encryptor;
+    private PropertyValueHandler handler;
     private ExtensionManager extensionManager;
     private FingerprintFactory fingerprintFactory;
     private SensitiveValueEncoder sensitiveValueEncoder;
@@ -67,9 +70,10 @@ public class FingerprintFactoryTest {
     @Before
     public void setup() {
         encryptor = createEncryptor();
+        handler = new PropertyValueHandlerBuilder().setEncryptor(encryptor).build();
         sensitiveValueEncoder = createSensitiveValueEncoder();
         extensionManager = new StandardExtensionDiscoveringManager();
-        fingerprintFactory = new FingerprintFactory(encryptor, extensionManager, sensitiveValueEncoder);
+        fingerprintFactory = new FingerprintFactory(handler, extensionManager, sensitiveValueEncoder);
     }
 
     @Test
@@ -204,17 +208,17 @@ public class FingerprintFactoryTest {
         return IOUtils.toByteArray(FingerprintFactoryTest.class.getResourceAsStream(resource));
     }
 
-    private <T> Element serializeElement(final PropertyEncryptor encryptor, final Class<T> componentClass, final T component,
+    private <T> Element serializeElement(final PropertyValueHandler handler, final Class<T> componentClass, final T component,
                                          final String serializerMethodName, ScheduledStateLookup scheduledStateLookup) throws Exception {
         final DocumentProvider documentProvider = new StandardDocumentProvider();
         final Document doc = documentProvider.newDocument();
 
         final FlowSerializer flowSerializer = new StandardFlowSerializer();
         final Method serializeMethod = StandardFlowSerializer.class.getDeclaredMethod(serializerMethodName,
-                Element.class, componentClass, ScheduledStateLookup.class, PropertyEncryptor.class);
+                Element.class, componentClass, ScheduledStateLookup.class, PropertyValueHandler.class);
         serializeMethod.setAccessible(true);
         final Element rootElement = doc.createElement("root");
-        serializeMethod.invoke(flowSerializer, rootElement, component, scheduledStateLookup, encryptor);
+        serializeMethod.invoke(flowSerializer, rootElement, component, scheduledStateLookup, handler);
         return rootElement;
     }
 
@@ -262,7 +266,7 @@ public class FingerprintFactoryTest {
                 "NO_VALUE" +
                 "NO_VALUE";
 
-        final Element rootElement = serializeElement(encryptor, RemoteProcessGroup.class, component, "addRemoteProcessGroup", IDENTITY_LOOKUP);
+        final Element rootElement = serializeElement(handler, RemoteProcessGroup.class, component, "addRemoteProcessGroup", IDENTITY_LOOKUP);
         final Element componentElement = (Element) rootElement.getElementsByTagName("remoteProcessGroup").item(0);
         assertEquals(expected, fingerprint("addRemoteProcessGroupFingerprint", Element.class, componentElement));
 
@@ -304,7 +308,7 @@ public class FingerprintFactoryTest {
                 "proxy-user" +
                 hashedProxyPassword;
 
-        final Element rootElement = serializeElement(encryptor, RemoteProcessGroup.class, component, "addRemoteProcessGroup", IDENTITY_LOOKUP);
+        final Element rootElement = serializeElement(handler, RemoteProcessGroup.class, component, "addRemoteProcessGroup", IDENTITY_LOOKUP);
         final Element componentElement = (Element) rootElement.getElementsByTagName("remoteProcessGroup").item(0);
         assertEquals(expected, fingerprint("addRemoteProcessGroupFingerprint", Element.class, componentElement));
     }
@@ -347,7 +351,7 @@ public class FingerprintFactoryTest {
                 "64KB" +
                 "10sec";
 
-        final Element rootElement = serializeElement(encryptor, RemoteProcessGroup.class, groupComponent, "addRemoteProcessGroup", IDENTITY_LOOKUP);
+        final Element rootElement = serializeElement(handler, RemoteProcessGroup.class, groupComponent, "addRemoteProcessGroup", IDENTITY_LOOKUP);
         final Element componentElement = (Element) rootElement.getElementsByTagName("inputPort").item(0);
         assertEquals(expected, fingerprint("addRemoteGroupPortFingerprint", Element.class, componentElement));
     }
