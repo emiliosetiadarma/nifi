@@ -68,5 +68,6 @@
         <module>nifi-web-utils</module>
         <module>nifi-write-ahead-log</module>
         <module>nifi-xml-processing</module>
+        <module>nifi-property-value-handler-api</module>
     </modules>
 </project>

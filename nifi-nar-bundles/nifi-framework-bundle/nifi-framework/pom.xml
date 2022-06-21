@@ -50,7 +50,6 @@
         <module>nifi-mock-authorizer</module>
         <module>nifi-shell-authorizer</module>
         <module>nifi-headless-server</module>
-        <module>nifi-property-value-handler</module>
     </modules>
     <dependencies>
         <dependency>

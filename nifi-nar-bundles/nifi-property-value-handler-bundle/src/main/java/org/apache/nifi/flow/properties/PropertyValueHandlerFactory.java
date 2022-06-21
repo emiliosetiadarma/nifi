@@ -17,7 +17,6 @@
 
 package org.apache.nifi.flow.properties;
 
-import org.apache.nifi.flow.properties.PropertyValueHandlerBuilder;
 import org.apache.nifi.util.NiFiProperties;
 
 import java.util.HashMap;
