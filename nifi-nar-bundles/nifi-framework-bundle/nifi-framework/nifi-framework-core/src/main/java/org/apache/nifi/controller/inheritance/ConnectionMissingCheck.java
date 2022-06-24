@@ -25,7 +25,7 @@ import org.apache.nifi.controller.repository.FlowFileRepository;
 import org.apache.nifi.controller.serialization.FlowEncodingVersion;
 import org.apache.nifi.controller.serialization.FlowFromDOMFactory;
 import org.apache.nifi.controller.serialization.FlowSynchronizationException;
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.flow.ComponentType;
 import org.apache.nifi.flow.VersionedComponent;
 import org.apache.nifi.registry.flow.diff.DifferenceType;

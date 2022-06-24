@@ -56,7 +56,7 @@ import org.apache.nifi.controller.serialization.FlowSerializationException;
 import org.apache.nifi.controller.serialization.FlowSynchronizationException;
 import org.apache.nifi.controller.serialization.StandardFlowSynchronizer;
 import org.apache.nifi.controller.status.ProcessGroupStatus;
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.engine.FlowEngine;
 import org.apache.nifi.events.BulletinFactory;
 import org.apache.nifi.groups.BundleUpdateStrategy;

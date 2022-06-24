@@ -45,8 +45,8 @@ import org.apache.nifi.controller.service.mock.DummyReportingTask;
 import org.apache.nifi.controller.service.mock.ServiceA;
 import org.apache.nifi.controller.service.mock.ServiceB;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
+import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.groups.BundleUpdateStrategy;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.logging.LogLevel;
@@ -60,6 +60,7 @@ import org.apache.nifi.parameter.Parameter;
 import org.apache.nifi.parameter.ParameterContext;
 import org.apache.nifi.parameter.ParameterDescriptor;
 import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.provenance.MockProvenanceRepository;
 import org.apache.nifi.registry.VariableRegistry;
 import org.apache.nifi.registry.flow.FlowRegistryClient;
@@ -138,7 +139,7 @@ public class TestFlowController {
         final String propsFile = "src/test/resources/flowcontrollertest.nifi.properties";
         nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
 
-        handler = PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties);
+        handler = new DefaultPropertyValueHandler(PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties));
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);

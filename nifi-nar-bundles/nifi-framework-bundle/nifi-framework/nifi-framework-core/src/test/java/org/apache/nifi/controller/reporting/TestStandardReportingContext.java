@@ -32,11 +32,12 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.ReportingTaskNode;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
+import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.nar.ExtensionDiscoveringManager;
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager;
 import org.apache.nifi.nar.SystemBundle;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.provenance.MockProvenanceRepository;
 import org.apache.nifi.registry.VariableRegistry;
 import org.apache.nifi.registry.flow.FlowRegistryClient;
@@ -82,7 +83,7 @@ public class TestStandardReportingContext {
         otherProps.put("nifi.remote.input.socket.port", "");
         otherProps.put("nifi.remote.input.secure", "");
         nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
-        handler = PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties);
+        handler = new DefaultPropertyValueHandler(PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties));
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);

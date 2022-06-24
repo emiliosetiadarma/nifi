@@ -25,8 +25,8 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.leader.election.LeaderElectionManager;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyValueHandler;
 import org.apache.nifi.nar.ExtensionManager;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.registry.VariableRegistry;
 import org.apache.nifi.registry.flow.FlowRegistryClient;
 import org.apache.nifi.reporting.BulletinRepository;
@@ -48,7 +48,7 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
     private NiFiProperties properties;
     private Authorizer authorizer;
     private AuditService auditService;
-    private PropertyValueHandler handler;
+    private PropertyValueHandler propertyValueHandler;
     private BulletinRepository bulletinRepository;
     private ClusterCoordinator clusterCoordinator;
     private VariableRegistry variableRegistry;
@@ -71,7 +71,7 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
                     properties,
                     authorizer,
                     auditService,
-                    handler,
+                    propertyValueHandler,
                     nodeProtocolSender,
                     bulletinRepository,
                     clusterCoordinator,
@@ -88,7 +88,7 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
                     properties,
                     authorizer,
                     auditService,
-                    handler,
+                    propertyValueHandler,
                     bulletinRepository,
                     variableRegistry,
                     flowRegistryClient,
@@ -162,7 +162,7 @@ public class FlowControllerFactoryBean implements FactoryBean, ApplicationContex
         this.statusHistoryRepository = statusHistoryRepository;
     }
 
-    public void setHandler(PropertyValueHandler handler) {
-        this.handler = handler;
+    public void setPropertyValueHandler(PropertyValueHandler propertyValueHandler) {
+        this.propertyValueHandler = propertyValueHandler;
     }
 }

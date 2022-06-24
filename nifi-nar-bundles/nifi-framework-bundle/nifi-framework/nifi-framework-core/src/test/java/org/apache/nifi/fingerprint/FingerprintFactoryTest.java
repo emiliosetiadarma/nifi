@@ -27,12 +27,12 @@ import org.apache.nifi.controller.serialization.FlowSerializer;
 import org.apache.nifi.controller.serialization.ScheduledStateLookup;
 import org.apache.nifi.controller.serialization.StandardFlowSerializer;
 import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.encrypt.SensitiveValueEncoder;
 import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.nar.ExtensionManager;
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.remote.RemoteGroupPort;
 import org.apache.nifi.remote.protocol.SiteToSiteTransportProtocol;
 import org.apache.nifi.xml.processing.parsers.DocumentProvider;
@@ -70,7 +70,7 @@ public class FingerprintFactoryTest {
     @Before
     public void setup() {
         encryptor = createEncryptor();
-        handler = new PropertyValueHandlerBuilder().setEncryptor(encryptor).build();
+        handler = new DefaultPropertyValueHandler(encryptor);
         sensitiveValueEncoder = createSensitiveValueEncoder();
         extensionManager = new StandardExtensionDiscoveringManager();
         fingerprintFactory = new FingerprintFactory(handler, extensionManager, sensitiveValueEncoder);

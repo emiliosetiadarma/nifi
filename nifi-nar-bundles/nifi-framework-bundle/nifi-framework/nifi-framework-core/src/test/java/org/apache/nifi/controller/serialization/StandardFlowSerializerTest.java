@@ -26,8 +26,8 @@ import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.ProcessorNode;
 import org.apache.nifi.controller.repository.FlowFileEventRepository;
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
+import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.nar.ExtensionDiscoveringManager;
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager;
 import org.apache.nifi.nar.SystemBundle;
@@ -36,6 +36,7 @@ import org.apache.nifi.parameter.ParameterContext;
 import org.apache.nifi.parameter.ParameterDescriptor;
 import org.apache.nifi.parameter.ParameterReferenceManager;
 import org.apache.nifi.parameter.StandardParameterContext;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.provenance.MockProvenanceRepository;
 import org.apache.nifi.registry.VariableRegistry;
 import org.apache.nifi.registry.flow.FlowRegistryClient;
@@ -89,7 +90,8 @@ public class StandardFlowSerializerTest {
         otherProps.put("nifi.remote.input.socket.port", "");
         otherProps.put("nifi.remote.input.secure", "");
         final NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
-        final PropertyValueHandler handler = PropertyValueHandlerFactory.getPropertyValueHandler(nifiProperties);
+
+        final PropertyValueHandler handler = new DefaultPropertyValueHandler(PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties));
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);

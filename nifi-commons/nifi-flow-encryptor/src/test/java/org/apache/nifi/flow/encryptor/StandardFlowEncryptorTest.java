@@ -16,11 +16,11 @@
  */
 package org.apache.nifi.flow.encryptor;
 
-import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
-import org.apache.nifi.encrypt.PropertyValueHandlerConfigurationContext;
-import org.apache.nifi.encrypt.StandardPropertyValueHandlerConfigurationContext;
+import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyEncryptorBuilder;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
+import org.apache.nifi.property.value.handler.cipher.PassthroughPropertyValueHandler;
 import org.apache.nifi.security.util.EncryptionMethod;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -131,8 +131,10 @@ public class StandardFlowEncryptorTest {
     }
 
     private PropertyValueHandler getPropertyValueHandler(final String propertiesKey, final String propertiesAlgorithm) {
-        final PropertyValueHandlerConfigurationContext context = new StandardPropertyValueHandlerConfigurationContext(propertiesKey, propertiesAlgorithm);
-        return new PropertyValueHandlerBuilder().setContext(context).build();
+        final PropertyEncryptor encryptor = new PropertyEncryptorBuilder(propertiesKey)
+                .setAlgorithm(propertiesAlgorithm)
+                .build();
+        return new DefaultPropertyValueHandler(encryptor);
     }
 
     private void compareFlow(final String sampleFlow, final String outputFlow) {
@@ -168,7 +170,7 @@ public class StandardFlowEncryptorTest {
     }
 
     private String getProcessedFlowXml(final String flowXml) {
-        final PassthroughPropertyValueHandler handler = new PassthroughPropertyValueHandler() {
+        final PropertyValueHandler handler = new PassthroughPropertyValueHandler() {
             @Override
             public String encode(final String property) {
                 return property;

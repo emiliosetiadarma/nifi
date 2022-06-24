@@ -14,18 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.encrypt;
+package org.apache.nifi.property.value.handler.cipher;
 
+import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyEncryptorFactory;
 import org.apache.nifi.security.util.EncryptionMethod;
-import org.apache.nifi.security.util.crypto.AESKeyedCipherProvider;
-import org.apache.nifi.security.util.crypto.KeyedCipherProvider;
-import org.apache.nifi.util.StringUtils;
+import org.apache.nifi.util.NiFiProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,19 +32,9 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class DefaultPropertyHandlerTest {
-    private static final KeyedCipherProvider CIPHER_PROVIDER = new AESKeyedCipherProvider();
+    private PropertyEncryptor encryptor;
 
-    private static final EncryptionMethod ENCRYPTION_METHOD = EncryptionMethod.AES_GCM;
-
-    private static final String KEY_ALGORITHM = "AES";
-
-    private static final byte[] STATIC_KEY = StringUtils.repeat("KEY", 8).getBytes(StandardCharsets.UTF_8);
-
-    private static final SecretKey SECRET_KEY = new SecretKeySpec(STATIC_KEY, KEY_ALGORITHM);
-
-    private KeyedCipherPropertyEncryptor encryptor;
-
-    private PropertyValueHandler handler;
+    private DefaultPropertyValueHandler handler;
 
     private static final String SAMPLE_VALUE = "NiFi engineer here!";
 
@@ -61,7 +49,11 @@ public class DefaultPropertyHandlerTest {
 
     @BeforeEach
     public void setUp() {
-        encryptor = new KeyedCipherPropertyEncryptor(CIPHER_PROVIDER, ENCRYPTION_METHOD, SECRET_KEY);
+        final Properties properties = new Properties();
+        properties.setProperty(NiFiProperties.SENSITIVE_PROPS_ALGORITHM, EncryptionMethod.SHA256_256AES.getAlgorithm());
+        properties.setProperty(NiFiProperties.SENSITIVE_PROPS_KEY, String.class.getName());
+        final NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(null, properties);
+        encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
         handler = new DefaultPropertyValueHandler(encryptor);
     }
 

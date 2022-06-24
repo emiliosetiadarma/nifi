@@ -21,7 +21,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 
 import java.io.IOException;
 import java.io.InputStream;

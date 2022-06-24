@@ -35,8 +35,9 @@
         <constructor-arg ref="nifiProperties" />
     </bean>
 
-    <bean id="propertyValueHandler" class="org.apache.nifi.encrypt.PropertyValueHandlerFactory" factory-method="getPropertyValueHandler">
-        <constructor-arg ref="nifiProperties" />
+    <!-- property value handler -->
+    <bean id="propertyValueHandler" class="org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler">
+        <constructor-arg type="org.apache.nifi.encrypt.PropertyEncryptor" ref="propertyEncryptor" />
     </bean>
 
     <!-- flow registry -->
@@ -53,7 +54,7 @@
         <property name="properties" ref="nifiProperties"/>
         <property name="authorizer" ref="authorizer" />
         <property name="auditService" ref="auditService" />
-        <property name="handler" ref="propertyValueHandler" />
+        <property name="propertyValueHandler" ref="propertyValueHandler" />
         <property name="bulletinRepository" ref="bulletinRepository" />
         <property name="clusterCoordinator" ref="clusterCoordinator" />
         <property name="variableRegistry" ref="variableRegistry"/>

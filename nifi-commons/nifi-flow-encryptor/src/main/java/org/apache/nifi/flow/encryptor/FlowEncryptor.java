@@ -16,7 +16,7 @@
  */
 package org.apache.nifi.flow.encryptor;
 
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 
 import java.io.InputStream;
 import java.io.OutputStream;

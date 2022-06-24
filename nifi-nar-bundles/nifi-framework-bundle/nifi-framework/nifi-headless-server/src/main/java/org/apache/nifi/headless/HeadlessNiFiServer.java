@@ -43,8 +43,8 @@ import org.apache.nifi.diagnostics.DiagnosticsDumpElement;
 import org.apache.nifi.diagnostics.DiagnosticsFactory;
 import org.apache.nifi.diagnostics.ThreadDumpTask;
 import org.apache.nifi.diagnostics.bootstrap.BootstrapDiagnosticsFactory;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerFactory;
+import org.apache.nifi.encrypt.PropertyEncryptorFactory;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.events.VolatileBulletinRepository;
 import org.apache.nifi.nar.ExtensionDiscoveringManager;
 import org.apache.nifi.nar.ExtensionManagerHolder;
@@ -55,6 +55,7 @@ import org.apache.nifi.nar.NarLoader;
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager;
 import org.apache.nifi.nar.StandardNarLoader;
 import org.apache.nifi.nar.NarUnpackMode;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.registry.VariableRegistry;
 import org.apache.nifi.registry.flow.StandardFlowRegistryClient;
 import org.apache.nifi.registry.variable.FileBasedVariableRegistry;
@@ -130,7 +131,7 @@ public class HeadlessNiFiServer implements NiFiServer {
                 }
             };
 
-            PropertyValueHandler handler = PropertyValueHandlerFactory.getPropertyValueHandler(props);
+            PropertyValueHandler handler = new DefaultPropertyValueHandler(PropertyEncryptorFactory.getPropertyEncryptor(props));
             VariableRegistry variableRegistry = new FileBasedVariableRegistry(props.getVariableRegistryPropertiesPaths());
             BulletinRepository bulletinRepository = new VolatileBulletinRepository();
             StandardFlowRegistryClient flowRegistryClient = new StandardFlowRegistryClient();

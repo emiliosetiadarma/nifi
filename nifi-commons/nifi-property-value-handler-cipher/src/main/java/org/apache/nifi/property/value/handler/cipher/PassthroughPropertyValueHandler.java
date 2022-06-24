@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.encrypt;
+package org.apache.nifi.property.value.handler.cipher;
+
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,9 +31,6 @@ public class PassthroughPropertyValueHandler implements PropertyValueHandler {
     private static final String ENCRYPTED_FORMAT = "enc{%s}";
 
     public PassthroughPropertyValueHandler() {}
-
-    @Override
-    public void onConfigured(final PropertyValueHandlerConfigurationContext context) {}
 
     @Override
     public boolean isEncoded(final String value) {

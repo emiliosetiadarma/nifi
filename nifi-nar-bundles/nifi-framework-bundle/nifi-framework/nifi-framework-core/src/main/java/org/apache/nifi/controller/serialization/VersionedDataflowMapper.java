@@ -27,7 +27,7 @@ import org.apache.nifi.controller.flow.VersionedFlowEncodingVersion;
 import org.apache.nifi.controller.flow.VersionedRegistry;
 import org.apache.nifi.controller.flow.VersionedTemplate;
 import org.apache.nifi.controller.service.ControllerServiceNode;
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.flow.ScheduledState;
 import org.apache.nifi.flow.VersionedControllerService;
 import org.apache.nifi.flow.VersionedProcessGroup;

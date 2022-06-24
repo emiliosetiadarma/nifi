@@ -17,10 +17,10 @@
 package org.apache.nifi.fingerprint
 
 import org.apache.nifi.encrypt.PropertyEncryptor
-import org.apache.nifi.encrypt.PropertyValueHandler
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler
 import org.apache.nifi.nar.ExtensionManager
 import org.apache.nifi.nar.StandardExtensionDiscoveringManager
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler
 import org.apache.nifi.util.NiFiProperties
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.After
@@ -42,7 +42,7 @@ class FingerprintFactoryGroovyIT extends GroovyTestCase {
     private static PropertyEncryptor mockEncryptor = [
             encrypt: { String plaintext -> plaintext.reverse() },
             decrypt: { String cipherText -> cipherText.reverse() }] as PropertyEncryptor
-    private static PropertyValueHandler mockHandler = new PropertyValueHandlerBuilder().setEncryptor(mockEncryptor).build()
+    private static PropertyValueHandler mockHandler = new DefaultPropertyValueHandler(mockEncryptor);
     private static ExtensionManager extensionManager = new StandardExtensionDiscoveringManager()
 
     private static String originalPropertiesPath = System.getProperty(NiFiProperties.PROPERTIES_FILE_PATH)

@@ -32,10 +32,9 @@ import org.apache.nifi.controller.scheduling.StatelessProcessScheduler;
 import org.apache.nifi.controller.service.ControllerServiceProvider;
 import org.apache.nifi.controller.service.StandardControllerServiceProvider;
 import org.apache.nifi.encrypt.PropertyEncryptionMethod;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
-import org.apache.nifi.encrypt.PropertyValueHandlerConfigurationContext;
-import org.apache.nifi.encrypt.StandardPropertyValueHandlerConfigurationContext;
+import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyEncryptorBuilder;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.events.BulletinFactory;
 import org.apache.nifi.events.EventReporter;
 import org.apache.nifi.events.VolatileBulletinRepository;
@@ -48,6 +47,7 @@ import org.apache.nifi.nar.ExtensionDiscoveringManager;
 import org.apache.nifi.nar.NarClassLoaders;
 import org.apache.nifi.parameter.ParameterContextManager;
 import org.apache.nifi.parameter.StandardParameterContextManager;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.provenance.IdentifierLookup;
 import org.apache.nifi.provenance.ProvenanceRepository;
 import org.apache.nifi.registry.VariableRegistry;
@@ -150,14 +150,12 @@ public class StandardStatelessDataflowFactory implements StatelessDataflowFactor
 
             final VariableRegistry variableRegistry = VariableRegistry.EMPTY_REGISTRY;
 
-            final PropertyValueHandlerConfigurationContext context = new StandardPropertyValueHandlerConfigurationContext(
-                    engineConfiguration.getSensitivePropsKey(),
-                    PropertyEncryptionMethod.NIFI_PBKDF2_AES_GCM_256.toString()
-            );
-
-            final PropertyValueHandler lazyInitializedHandler = new PropertyValueHandlerBuilder()
-                    .setContext(context)
+            final PropertyEncryptor encryptor = new PropertyEncryptorBuilder(engineConfiguration.getSensitivePropsKey())
+                    .setAlgorithm(PropertyEncryptionMethod.NIFI_PBKDF2_AES_GCM_256.toString())
                     .build();
+
+            final PropertyValueHandler lazyInitializedHandler = new DefaultPropertyValueHandler(encryptor);
+
 
             final CounterRepository counterRepo = new StandardCounterRepository();
 

@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.encrypt;
+package org.apache.nifi.property.value.handler.cipher;
 
+import org.apache.nifi.encrypt.EncryptionException;
+import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyEncryptorFactory;
 import org.apache.nifi.security.util.EncryptionMethod;
-import org.apache.nifi.security.util.crypto.AESKeyedCipherProvider;
-import org.apache.nifi.security.util.crypto.KeyedCipherProvider;
-import org.apache.nifi.util.StringUtils;
+import org.apache.nifi.util.NiFiProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,17 +33,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class ProcessContextPropertyValueHandlerTest {
-    private static final KeyedCipherProvider CIPHER_PROVIDER = new AESKeyedCipherProvider();
-
-    private static final EncryptionMethod ENCRYPTION_METHOD = EncryptionMethod.AES_GCM;
-
-    private static final String KEY_ALGORITHM = "AES";
-
-    private static final byte[] STATIC_KEY = StringUtils.repeat("KEY", 8).getBytes(StandardCharsets.UTF_8);
-
-    private static final SecretKey SECRET_KEY = new SecretKeySpec(STATIC_KEY, KEY_ALGORITHM);
-
-    private KeyedCipherPropertyEncryptor encryptor;
+    private PropertyEncryptor encryptor;
 
     private ProcessContextPropertyValueHandler handler;
 
@@ -65,14 +54,18 @@ public class ProcessContextPropertyValueHandlerTest {
 
     // this corresponds 1:1 with the values in SAMPLE_VALUES above
     private static final String[] UNWRAPPED_ENCRYPTED_VALUES = new String[] {
-            "12bde25ee84faa01ec4b38d98b10bbfb3de757fb4ace74fba21a07800b908545c3d33e26fda9",
-            "a95184acc79cf1418b0ee9500093572f6d5d93414cb624c1eff670e95dea6109b96e9647aad369e1e44d636916bbd8b86a76d8",
-            "6045c679e4776f11173a3cad6fe66185bbbb466f61b21f9305085df6ee155f2aee"
+            "169e5994307dc130b922ee46dda7775a6dd5d1f579e7244b0c4df3ebff8e9403",
+            "66d5f2721903ea7e56587e39ea1b8b0024a6fa578f9677a6344d31145d81eee737d5d41a7adf6f53981045a57bd100fe",
+            "e47d703203c24ec21a643129e019f294c1d2131006282c701b8d7a7eec05b2e9"
     };
 
     @BeforeEach
     public void setUp() {
-        encryptor = new KeyedCipherPropertyEncryptor(CIPHER_PROVIDER, ENCRYPTION_METHOD, SECRET_KEY);
+        final Properties properties = new Properties();
+        properties.setProperty(NiFiProperties.SENSITIVE_PROPS_ALGORITHM, EncryptionMethod.SHA256_256AES.getAlgorithm());
+        properties.setProperty(NiFiProperties.SENSITIVE_PROPS_KEY, String.class.getName());
+        final NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(null, properties);
+        encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
         handler = new ProcessContextPropertyValueHandler(new DefaultPropertyValueHandler(encryptor));
     }
 

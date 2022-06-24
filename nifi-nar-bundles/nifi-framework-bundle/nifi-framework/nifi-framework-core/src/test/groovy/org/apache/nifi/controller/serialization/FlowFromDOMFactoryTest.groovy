@@ -19,8 +19,8 @@ package org.apache.nifi.controller.serialization
 import org.apache.commons.codec.binary.Hex
 import org.apache.nifi.encrypt.EncryptionException
 import org.apache.nifi.encrypt.PropertyEncryptor
-import org.apache.nifi.encrypt.PropertyValueHandler
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler
 import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,7 +48,7 @@ class FlowFromDOMFactoryTest {
         String wrappedProperty = "enc{${property}}"
 
         PropertyEncryptor flowEncryptor = createEncryptor()
-        PropertyValueHandler flowHandler = new PropertyValueHandlerBuilder().setEncryptor(flowEncryptor).build();
+        PropertyValueHandler flowHandler = new DefaultPropertyValueHandler(flowEncryptor)
 
         // Act
         String recovered = FlowFromDOMFactory.decrypt(wrappedProperty, flowHandler)
@@ -65,7 +65,7 @@ class FlowFromDOMFactoryTest {
         String wrappedProperty = "enc{${property}}"
 
         PropertyEncryptor flowEncryptor = createExceptionEncryptor()
-        PropertyValueHandler flowHandler = new PropertyValueHandlerBuilder().setEncryptor(flowEncryptor).build();
+        PropertyValueHandler flowHandler = new DefaultPropertyValueHandler(flowEncryptor)
 
         // Act
         def msg = shouldFail(EncryptionException) {

@@ -18,8 +18,8 @@
 package org.apache.nifi.groups;
 
 import org.apache.nifi.flow.VersionedComponent;
-import org.apache.nifi.encrypt.PassthroughPropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandler;
+import org.apache.nifi.property.value.handler.cipher.PassthroughPropertyValueHandler;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 
 import java.time.Duration;
 import java.util.function.Function;

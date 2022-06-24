@@ -14,17 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.encrypt;
+package org.apache.nifi.property.value.handler.api;
 
 public interface PropertyValueHandler {
-    /**
-     * Configures the {@link PropertyValueHandler} using the given {@link PropertyValueHandlerConfigurationContext}. In
-     * some implementations, this may be a no-op. In implementations where it is not a no-op, the context is required to
-     * not be null
-     * @param context the {@link PropertyValueHandlerConfigurationContext} to configure the {@link PropertyValueHandler}
-     */
-    public void onConfigured(final PropertyValueHandlerConfigurationContext context);
-
     /**
      * Evaluates the property and checks whether the property is encoded
      * @param value the property to check

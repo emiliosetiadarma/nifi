@@ -14,7 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.encrypt;
+package org.apache.nifi.property.value.handler.cipher;
+
+import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyEncryptorBuilder;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -30,28 +34,9 @@ public class DefaultPropertyValueHandler implements PropertyValueHandler {
 
     private PropertyEncryptor encryptor;
 
-    public DefaultPropertyValueHandler() {}
-
     public DefaultPropertyValueHandler(final PropertyEncryptor encryptor) {
         Objects.requireNonNull(encryptor);
         this.encryptor = encryptor;
-    }
-
-    @Override
-    public void onConfigured(final PropertyValueHandlerConfigurationContext context) {
-        if (encryptor != null) {
-            return;
-        }
-
-        Objects.requireNonNull(context);
-
-        final String algorithm = context.getProperty(SENSITIVE_PROPS_ALGORITHM);
-        final String password = context.getProperty(SENSITIVE_PROPS_KEY);
-
-        Objects.requireNonNull(algorithm);
-        Objects.requireNonNull(password);
-
-        encryptor = new PropertyEncryptorBuilder(password).setAlgorithm(algorithm).build();
     }
 
     @Override

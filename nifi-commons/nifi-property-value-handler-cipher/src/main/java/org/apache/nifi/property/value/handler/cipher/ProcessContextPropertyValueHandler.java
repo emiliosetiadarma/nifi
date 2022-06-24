@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.nifi.encrypt;
+package org.apache.nifi.property.value.handler.cipher;
 
-import java.util.Objects;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 
 /**
  * This class is used by ProcessContext to allow its encrypt and decrypt function. The decode function in particular
@@ -29,9 +29,6 @@ public class ProcessContextPropertyValueHandler implements PropertyValueHandler 
     public ProcessContextPropertyValueHandler(final PropertyValueHandler handler) {
         this.handler = handler;
     }
-
-    @Override
-    public void onConfigured(final PropertyValueHandlerConfigurationContext context) {}
 
     @Override
     public boolean isEncoded(final String value) {

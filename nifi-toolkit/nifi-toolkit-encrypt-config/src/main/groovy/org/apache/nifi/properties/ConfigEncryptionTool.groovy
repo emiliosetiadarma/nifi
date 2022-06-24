@@ -29,15 +29,15 @@ import org.apache.commons.cli.Option
 import org.apache.commons.cli.Options
 import org.apache.commons.cli.ParseException
 import org.apache.commons.codec.binary.Hex
-import org.apache.nifi.encrypt.PropertyValueHandler
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder
-import org.apache.nifi.encrypt.PropertyValueHandlerConfigurationContext
-import org.apache.nifi.encrypt.StandardPropertyValueHandlerConfigurationContext
+import org.apache.nifi.encrypt.PropertyEncryptor
+import org.apache.nifi.encrypt.PropertyEncryptorFactory
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler
 import org.apache.nifi.flow.encryptor.FlowEncryptor
 import org.apache.nifi.flow.encryptor.StandardFlowEncryptor
 import org.apache.nifi.properties.scheme.ProtectionScheme
 import org.apache.nifi.properties.scheme.StandardProtectionScheme
 import org.apache.nifi.properties.scheme.StandardProtectionSchemeResolver
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler
 import org.apache.nifi.toolkit.tls.commandLine.CommandLineParseException
 import org.apache.nifi.toolkit.tls.commandLine.ExitCode
 import org.apache.nifi.util.NiFiBootstrapUtils
@@ -1613,8 +1613,7 @@ class ConfigEncryptionTool {
     }
 
     PropertyValueHandler getPropertyValueHandler(NiFiProperties properties) {
-        final PropertyValueHandlerBuilder builder = new PropertyValueHandlerBuilder()
-        final PropertyValueHandlerConfigurationContext context = new StandardPropertyValueHandlerConfigurationContext(properties);
-        return builder.setContext(context).build()
+        final PropertyEncryptor propertyEncryptor = PropertyEncryptorFactory.getPropertyEncryptor(properties);
+        return new DefaultPropertyValueHandler(propertyEncryptor);
     }
 }

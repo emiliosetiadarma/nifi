@@ -16,12 +16,12 @@
  */
 package org.apache.nifi.flow.encryptor.command;
 
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
-import org.apache.nifi.encrypt.PropertyValueHandlerConfigurationContext;
-import org.apache.nifi.encrypt.StandardPropertyValueHandlerConfigurationContext;
+import org.apache.nifi.encrypt.PropertyEncryptor;
+import org.apache.nifi.encrypt.PropertyEncryptorBuilder;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.flow.encryptor.FlowEncryptor;
 import org.apache.nifi.flow.encryptor.StandardFlowEncryptor;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.security.util.EncryptionMethod;
 
 import java.io.File;
@@ -195,8 +195,9 @@ class FlowEncryptorCommand implements Runnable {
     }
 
     private PropertyValueHandler getPropertyValueHandler(final String password, final String algorithm) {
-        final PropertyValueHandlerBuilder builder = new PropertyValueHandlerBuilder();
-        final PropertyValueHandlerConfigurationContext context = new StandardPropertyValueHandlerConfigurationContext(password, algorithm);
-        return builder.setContext(context).build();
+        final PropertyEncryptor propertyEncryptor = new PropertyEncryptorBuilder(password)
+                .setAlgorithm(algorithm)
+                .build();
+        return new DefaultPropertyValueHandler(propertyEncryptor);
     }
 }

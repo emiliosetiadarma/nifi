@@ -69,8 +69,7 @@ import org.apache.nifi.controller.state.providers.local.WriteAheadLocalStateProv
 import org.apache.nifi.controller.status.history.StatusHistoryRepository;
 import org.apache.nifi.controller.status.history.VolatileComponentStatusRepository;
 import org.apache.nifi.encrypt.PropertyEncryptor;
-import org.apache.nifi.encrypt.PropertyValueHandler;
-import org.apache.nifi.encrypt.PropertyValueHandlerBuilder;
+import org.apache.nifi.property.value.handler.api.PropertyValueHandler;
 import org.apache.nifi.engine.FlowEngine;
 import org.apache.nifi.events.VolatileBulletinRepository;
 import org.apache.nifi.flowfile.FlowFile;
@@ -91,6 +90,7 @@ import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Processor;
 import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.property.value.handler.cipher.DefaultPropertyValueHandler;
 import org.apache.nifi.provenance.ProvenanceEventRecord;
 import org.apache.nifi.provenance.ProvenanceEventRepository;
 import org.apache.nifi.provenance.ProvenanceEventType;
@@ -240,7 +240,7 @@ public class FrameworkIntegrationTest {
         statusHistoryRepository = Mockito.mock(StatusHistoryRepository.class);
 
         final PropertyEncryptor encryptor = createEncryptor();
-        final PropertyValueHandler handler = new PropertyValueHandlerBuilder().setEncryptor(encryptor).build();
+        final PropertyValueHandler handler = new DefaultPropertyValueHandler(encryptor);
         final Authorizer authorizer = new AlwaysAuthorizedAuthorizer();
         final AuditService auditService = new NopAuditService();
 
