@@ -130,12 +130,13 @@ public class TestFlowController {
 
         flowFileEventRepo = mock(FlowFileEventRepository.class);
         auditService = mock(AuditService.class);
+        encryptor = mock(PropertyEncryptor.class);
         final Map<String, String> otherProps = new HashMap<>();
         otherProps.put(NiFiProperties.PROVENANCE_REPO_IMPLEMENTATION_CLASS, MockProvenanceRepository.class.getName());
         otherProps.put("nifi.remote.input.socket.port", "");
         otherProps.put("nifi.remote.input.secure", "");
         final String propsFile = "src/test/resources/flowcontrollertest.nifi.properties";
-        encryptor = mock(PropertyEncryptor.class);
+        nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);
