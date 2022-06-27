@@ -92,6 +92,7 @@ public class StandardFlowServiceTest {
         mockAuditService = mock(AuditService.class);
         revisionManager = mock(RevisionManager.class);
         extensionManager = mock(ExtensionDiscoveringManager.class);
+        mockEncryptor = mock(PropertyEncryptor.class);
         flowController = FlowController.createStandaloneInstance(mockFlowFileEventRepository, properties, authorizer, mockAuditService, mockEncryptor,
                                         new VolatileBulletinRepository(), variableRegistry, mock(FlowRegistryClient.class), extensionManager, statusHistoryRepository);
         flowService = StandardFlowService.createStandaloneInstance(flowController, properties, revisionManager, authorizer,
