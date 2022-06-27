@@ -237,7 +237,7 @@ public class FrameworkIntegrationTest {
 
         statusHistoryRepository = Mockito.mock(StatusHistoryRepository.class);
 
-        final PropertyEncryptor encryptor = createEncryptor();
+        final PropertyEncryptor encryptor = Mockito.mock(PropertyEncryptor.class);
         final Authorizer authorizer = new AlwaysAuthorizedAuthorizer();
         final AuditService auditService = new NopAuditService();
 
@@ -619,19 +619,5 @@ public class FrameworkIntegrationTest {
 
     protected ExtensionManager getExtensionManager() {
         return extensionManager;
-    }
-
-    private PropertyEncryptor createEncryptor() {
-        return new PropertyEncryptor() {
-            @Override
-            public String encrypt(String property) {
-                return property;
-            }
-
-            @Override
-            public String decrypt(String encryptedProperty) {
-                return encryptedProperty;
-            }
-        };
     }
 }
