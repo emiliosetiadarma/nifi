@@ -47,7 +47,6 @@ import org.apache.nifi.web.api.entity.ProcessorEntity;
 import org.apache.nifi.xml.processing.parsers.StandardDocumentProvider;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
