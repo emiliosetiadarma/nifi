@@ -89,7 +89,7 @@ public class StandardFlowSerializerTest {
         otherProps.put("nifi.remote.input.socket.port", "");
         otherProps.put("nifi.remote.input.secure", "");
         final NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(propsFile, otherProps);
-        final PropertyEncryptor encryptor = PropertyEncryptorFactory.getPropertyEncryptor(nifiProperties);
+        final PropertyEncryptor encryptor = Mockito.mock(PropertyEncryptor.class);
 
         // use the system bundle
         systemBundle = SystemBundle.create(nifiProperties);
