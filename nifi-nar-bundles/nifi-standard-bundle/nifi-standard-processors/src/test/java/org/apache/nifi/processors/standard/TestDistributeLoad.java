@@ -79,29 +79,23 @@ public class TestDistributeLoad {
 
         testRunner.setProperty("1", "5");
 
-        assertThrows(AssertionError.class, () -> {
-            testRunner.setProperty("1", "0");
-        });
+        testRunner.setProperty("1", "0");
+        testRunner.assertNotValid();
 
-
-        assertThrows(AssertionError.class, () -> {
-            testRunner.setProperty("1", "-1");
-        });
+        testRunner.setProperty("1", "-1");
+        testRunner.assertNotValid();
 
         testRunner.setProperty("1", "101");
         testRunner.setProperty("100", "5");
 
-        assertThrows(AssertionError.class, () -> {
-            testRunner.setProperty("101", "5");
-        });
+        testRunner.setProperty("101", "5");
+        testRunner.assertNotValid();
 
-        assertThrows(AssertionError.class, () -> {
-            testRunner.setProperty("0", "5");
-        });
+        testRunner.setProperty("0", "5");
+        testRunner.assertNotValid();
 
-        assertThrows(AssertionError.class, () -> {
-            testRunner.setProperty("-1", "5");
-        });
+        testRunner.setProperty("-1", "5");
+        testRunner.assertNotValid();
     }
 
     @Test

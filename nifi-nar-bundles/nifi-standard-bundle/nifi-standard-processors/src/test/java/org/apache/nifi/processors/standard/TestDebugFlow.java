@@ -202,9 +202,10 @@ public class TestDebugFlow {
 
         runner.enqueue(contents.get(0).getBytes(), attribs.get(0));
 
-        final RuntimeException e = assertThrows(RuntimeException.class, () -> {
+        final AssertionError e = assertThrows(AssertionError.class, () -> {
             runner.run(2);
         });
+        assertTrue(e.getCause() instanceof RuntimeException);
         assertTrue(e.getMessage().contains("forced by org.apache.nifi.processors.standard.DebugFlow"));
     }
 
@@ -216,9 +217,10 @@ public class TestDebugFlow {
 
         runner.enqueue(contents.get(0).getBytes(), attribs.get(0));
 
-        final RuntimeException e = assertThrows(RuntimeException.class, () -> {
+        final AssertionError e = assertThrows(AssertionError.class, () -> {
             runner.run(2);
         });
+        assertTrue(e.getCause() instanceof RuntimeException);
         assertTrue(e.getMessage().contains("forced by org.apache.nifi.processors.standard.DebugFlow"));
     }
 
@@ -230,9 +232,10 @@ public class TestDebugFlow {
 
         runner.enqueue(contents.get(0).getBytes(), attribs.get(0));
 
-        final NullPointerException e = assertThrows(NullPointerException.class, () -> {
+        final AssertionError e = assertThrows(AssertionError.class, () -> {
             runner.run(2);
         });
+        assertTrue(e.getCause() instanceof NullPointerException);
         assertTrue(e.getMessage().contains("forced by org.apache.nifi.processors.standard.DebugFlow"));
     }
 
@@ -252,9 +255,10 @@ public class TestDebugFlow {
             runner.enqueue(contents.get(n).getBytes(), attribs.get(n));
         }
 
-        final RuntimeException e = assertThrows(RuntimeException.class, () -> {
+        final AssertionError e = assertThrows(AssertionError.class, () -> {
             runner.run(8);
         });
+        assertTrue(e.getCause() instanceof RuntimeException);
         assertTrue(e.getMessage().contains("forced by org.apache.nifi.processors.standard.DebugFlow"));
     }
 
@@ -301,9 +305,10 @@ public class TestDebugFlow {
         runner.setProperty(DebugFlow.NO_FF_EXCEPTION_ITERATIONS, "1");
         runner.assertValid();
 
-        final RuntimeException e = assertThrows(RuntimeException.class, () -> {
+        final AssertionError e = assertThrows(AssertionError.class, () -> {
             runner.run(3);
         });
+        assertTrue(e.getCause() instanceof RuntimeException);
         assertTrue(e.getMessage().contains("forced by org.apache.nifi.processors.standard.DebugFlow"));
     }
 
@@ -313,9 +318,10 @@ public class TestDebugFlow {
         runner.setProperty(DebugFlow.NO_FF_EXCEPTION_CLASS, "java.lang.RuntimeException");
         runner.assertValid();
 
-        final RuntimeException e = assertThrows(RuntimeException.class, () -> {
+        final AssertionError e = assertThrows(AssertionError.class, () -> {
             runner.run(3);
         });
+        assertTrue(e.getCause() instanceof RuntimeException);
         assertTrue(e.getMessage().contains("forced by org.apache.nifi.processors.standard.DebugFlow"));
     }
 
@@ -325,9 +331,10 @@ public class TestDebugFlow {
         runner.setProperty(DebugFlow.NO_FF_EXCEPTION_CLASS, "java.lang.NullPointerException");
         runner.assertValid();
 
-        final NullPointerException e = assertThrows(NullPointerException.class, () -> {
+        final AssertionError e = assertThrows(AssertionError.class, () -> {
             runner.run(3);
         });
+        assertTrue(e.getCause() instanceof NullPointerException);
         assertTrue(e.getMessage().contains("forced by org.apache.nifi.processors.standard.DebugFlow"));
     }
 
