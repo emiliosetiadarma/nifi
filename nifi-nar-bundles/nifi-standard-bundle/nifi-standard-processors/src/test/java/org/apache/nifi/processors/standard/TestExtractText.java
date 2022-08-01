@@ -16,9 +16,6 @@
  */
 package org.apache.nifi.processors.standard;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
@@ -27,14 +24,18 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.util.MockFlowFile;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestExtractText {
 
     final String SAMPLE_STRING = "foo\r\nbar1\r\nbar2\r\nbar3\r\nhello\r\nworld\r\n";
 
     @Test
-    public void testProcessor() throws Exception {
+    public void testProcessor() {
 
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
@@ -86,7 +87,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testProcessorWithDotall() throws Exception {
+    public void testProcessorWithDotall() {
 
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
@@ -116,7 +117,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testProcessorWithMultiline() throws Exception {
+    public void testProcessorWithMultiline() {
 
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
@@ -149,7 +150,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testProcessorWithMultilineAndDotall() throws Exception {
+    public void testProcessorWithMultilineAndDotall() {
 
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
@@ -184,7 +185,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testProcessorWithNoMatches() throws Exception {
+    public void testProcessorWithNoMatches() {
 
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
@@ -217,7 +218,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testNoFlowFile() throws UnsupportedEncodingException {
+    public void testNoFlowFile() {
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
         testRunner.run();
         testRunner.assertAllFlowFilesTransferred(ExtractText.REL_MATCH, 0);
@@ -225,7 +226,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testMatchOutsideBuffer() throws Exception {
+    public void testMatchOutsideBuffer() {
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
         testRunner.setProperty(ExtractText.MAX_BUFFER_SIZE, "3 B");//only read the first 3 chars ("foo")
@@ -308,7 +309,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testGetRelationShips() throws Exception {
+    public void testGetRelationShips() {
 
         final ExtractText processor = new ExtractText();
         final TestRunner testRunner = TestRunners.newTestRunner(processor);
@@ -323,7 +324,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testIncludeZeroCaptureGroupProperty() throws Exception {
+    public void testIncludeZeroCaptureGroupProperty() {
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
         final String attributeKey = "regex.result";
@@ -342,7 +343,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testFindAll() throws Exception {
+    public void testFindAll() {
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
         testRunner.setProperty(ExtractText.ENABLE_REPEATING_CAPTURE_GROUP, "true");
         final String attributeKey = "regex.result";
@@ -366,7 +367,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testFindAllPair() throws Exception {
+    public void testFindAllPair() {
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
         testRunner.setProperty(ExtractText.ENABLE_REPEATING_CAPTURE_GROUP, "true");
         final String attributeKey = "regex.result";
@@ -395,7 +396,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testIgnoreZeroCaptureGroupProperty() throws Exception {
+    public void testIgnoreZeroCaptureGroupProperty() {
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
 
         testRunner.setProperty(ExtractText.INCLUDE_CAPTURE_GROUP_ZERO, "false");
@@ -416,7 +417,7 @@ public class TestExtractText {
     }
 
     @Test
-    public void testShouldAllowNoCaptureGroups() throws Exception {
+    public void testShouldAllowNoCaptureGroups() {
         // Arrange
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
         final String attributeKey = "regex.result";
@@ -435,8 +436,8 @@ public class TestExtractText {
         out.assertAttributeEquals(attributeKey + ".0", SAMPLE_STRING);
     }
 
-    @Test(expected = java.lang.AssertionError.class)
-    public void testShouldNotAllowNoCaptureGroupsIfZeroDisabled() throws Exception {
+    @Test
+    public void testShouldNotAllowNoCaptureGroupsIfZeroDisabled() {
         // Arrange
         final TestRunner testRunner = TestRunners.newTestRunner(new ExtractText());
         testRunner.setProperty(ExtractText.INCLUDE_CAPTURE_GROUP_ZERO, "false");
@@ -447,6 +448,8 @@ public class TestExtractText {
         testRunner.enqueue(SAMPLE_STRING.getBytes(StandardCharsets.UTF_8));
 
         // Validation should fail because nothing will match
-        testRunner.run();
+        assertThrows(AssertionError.class, () -> {
+            testRunner.run();
+        });
     }
 }

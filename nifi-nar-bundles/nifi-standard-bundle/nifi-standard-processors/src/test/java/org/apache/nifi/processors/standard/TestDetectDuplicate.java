@@ -35,7 +35,7 @@ import org.apache.nifi.util.MockControllerServiceInitializationContext;
 import org.apache.nifi.util.MockComponentLog;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TestDetectDuplicate {
 
