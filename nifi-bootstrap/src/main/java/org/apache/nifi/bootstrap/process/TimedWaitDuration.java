@@ -77,7 +77,7 @@ public class TimedWaitDuration implements RuntimeValidator {
                     final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
                             .subject(this.getClass().getName())
                             .outcome(RuntimeValidatorResult.Outcome.FAILED)
-                            .explanation(String.format("Timed wait duration [%ds] is higher than the advised timed wait duration [%ds]", timedWaitDuration, DESIRED_TIMED_WAIT_DURATION))                            .build();
+                            .explanation(String.format("Timed wait duration [%ds] is more than the advised timed wait duration [%ds]", timedWaitDuration, DESIRED_TIMED_WAIT_DURATION))                            .build();
                     results.add(result);
                 }
             } else {

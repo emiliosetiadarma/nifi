@@ -98,6 +98,67 @@ public class RuntimeValidatorCheckerTest {
         }
     }
 
+    @Test
+    public void testNotEnoughAvailablePorts() {
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
+        configurationClasses.add(new AvailablePorts(getTestFile("available_ports_not_enough")));
+        checker = new RuntimeValidatorChecker(configurationClasses);
+
+        final List<RuntimeValidatorResult> results = checker.check();
+        assertEquals(1, results.size());
+        final List<RuntimeValidatorResult> failures = getFailures(results);
+        assertEquals(1, failures.size());
+        for (final RuntimeValidatorResult failure : failures) {
+            assertTrue(failure.getExplanation().contains("less than"));
+        }
+    }
+
+    @Test
+    public void testNotEnoughFileHandlesAndForkedProcesses() {
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
+        configurationClasses.add(new FileHandles(getTestFile("limits_not_enough")));
+        configurationClasses.add(new ForkedProcesses(getTestFile("limits_not_enough")));
+        checker = new RuntimeValidatorChecker(configurationClasses);
+
+        final List<RuntimeValidatorResult> results = checker.check();
+        assertEquals(4, results.size());
+        final List<RuntimeValidatorResult> failures = getFailures(results);
+        assertEquals(4, failures.size());
+        for (final RuntimeValidatorResult failure : failures) {
+            assertTrue(failure.getExplanation().contains("less than"));
+        }
+    }
+
+    @Test
+    public void testHighSwappiness() {
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
+        configurationClasses.add(new Swappiness(getTestFile("swappiness_high")));
+        checker = new RuntimeValidatorChecker(configurationClasses);
+
+        final List<RuntimeValidatorResult> results = checker.check();
+        assertEquals(1, results.size());
+        final List<RuntimeValidatorResult> failures = getFailures(results);
+        assertEquals(1, failures.size());
+        for (final RuntimeValidatorResult failure : failures) {
+            assertTrue(failure.getExplanation().contains("more than"));
+        }
+    }
+
+    @Test
+    public void testHighTimedWaitDuration () {
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
+        configurationClasses.add(new TimedWaitDuration(getTestFile("tcp_tw_timeout_high")));
+        checker = new RuntimeValidatorChecker(configurationClasses);
+
+        final List<RuntimeValidatorResult> results = checker.check();
+        assertEquals(1, results.size());
+        final List<RuntimeValidatorResult> failures = getFailures(results);
+        assertEquals(1, failures.size());
+        for (final RuntimeValidatorResult failure : failures) {
+            assertTrue(failure.getExplanation().contains("more than"));
+        }
+    }
+
     private List<RuntimeValidatorResult> getFailures(final List<RuntimeValidatorResult> results) {
         return results
                 .stream()
@@ -112,6 +173,13 @@ public class RuntimeValidatorCheckerTest {
                 .collect(Collectors.toList());
     }
 
+    private File getTestFile(final String filename) {
+        final ClassLoader classLoader = this.getClass().getClassLoader();
+        final URL url = classLoader.getResource(filename);
+        final File file = new File(url.getFile());
+        return file;
+    }
+
     private List<RuntimeValidator> getAllTestConfigurationClasses() {
         final List<RuntimeValidator> configurationClasses = new ArrayList<>();
         configurationClasses.add(new AvailablePorts(getTestFile("available_ports")));
@@ -120,13 +188,5 @@ public class RuntimeValidatorCheckerTest {
         configurationClasses.add(new Swappiness(getTestFile("swappiness")));
         configurationClasses.add(new TimedWaitDuration(getTestFile("tcp_tw_timeout")));
         return configurationClasses;
-    }
-
-
-    private File getTestFile(final String filename) {
-        final ClassLoader classLoader = this.getClass().getClassLoader();
-        final URL url = classLoader.getResource(filename);
-        final File file = new File(url.getFile());
-        return file;
     }
 }

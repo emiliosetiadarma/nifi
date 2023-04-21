@@ -71,7 +71,7 @@ public class Swappiness implements RuntimeValidator {
                     final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
                             .subject(this.getClass().getName())
                             .outcome(RuntimeValidatorResult.Outcome.FAILED)
-                            .explanation(String.format("Swappiness [%d] is higher than the desired swappiness [%d]", swappiness, DESIRED_SWAPPINESS))                            .build();
+                            .explanation(String.format("Swappiness [%d] is more than the desired swappiness [%d]", swappiness, DESIRED_SWAPPINESS))                            .build();
                     results.add(result);
                 }
             } else {
