@@ -46,7 +46,7 @@ public class AvailablePorts implements RuntimeValidator {
         if (configurationFile == null) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.SKIPPED)
                     .explanation("Configuration file is null")
                     .build();
             results.add(result);
@@ -55,7 +55,7 @@ public class AvailablePorts implements RuntimeValidator {
         if (!configurationFile.canRead()) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.SKIPPED)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
             results.add(result);
@@ -72,7 +72,7 @@ public class AvailablePorts implements RuntimeValidator {
                 if (availablePorts < DESIRED_AVAILABLE_PORTS) {
                     final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                             .subject(this.getClass().getName())
-                            .satisfactory(false)
+                            .outcome(RuntimeValidatorResult.Outcome.FAILED)
                             .explanation(String.format("Number of available ports [%d] is less than the desired number of available ports [%d]", availablePorts, DESIRED_AVAILABLE_PORTS))
                             .build();
                     results.add(result);
@@ -80,7 +80,7 @@ public class AvailablePorts implements RuntimeValidator {
             } else {
                 final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                         .subject(this.getClass().getName())
-                        .satisfactory(false)
+                        .outcome(RuntimeValidatorResult.Outcome.FAILED)
                         .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()))
                         .build();
                 results.add(result);
@@ -88,7 +88,7 @@ public class AvailablePorts implements RuntimeValidator {
         } catch (final IOException e) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.FAILED)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
             results.add(result);
@@ -97,7 +97,7 @@ public class AvailablePorts implements RuntimeValidator {
         if (results.isEmpty()) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(true)
+                    .outcome(RuntimeValidatorResult.Outcome.SUCCESSFUL)
                     .build();
             results.add(result);
         }

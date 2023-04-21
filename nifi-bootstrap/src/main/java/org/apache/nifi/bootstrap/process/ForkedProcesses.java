@@ -46,7 +46,7 @@ public class ForkedProcesses implements RuntimeValidator {
         if (configurationFile == null) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.SKIPPED)
                     .explanation("Configuration file is null")
                     .build();
             results.add(result);
@@ -55,7 +55,7 @@ public class ForkedProcesses implements RuntimeValidator {
         if (!configurationFile.canRead()) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.SKIPPED)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
             results.add(result);
@@ -71,7 +71,7 @@ public class ForkedProcesses implements RuntimeValidator {
                 if (softLimit < DESIRED_SOFT_LIMIT) {
                     final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
                             .subject(this.getClass().getName())
-                            .satisfactory(false)
+                            .outcome(RuntimeValidatorResult.Outcome.FAILED)
                             .explanation(String.format("Soft limit for forked processes [%d] is less than desired soft limit [%d]", softLimit, DESIRED_SOFT_LIMIT))
                             .build();
                     results.add(result);
@@ -79,7 +79,7 @@ public class ForkedProcesses implements RuntimeValidator {
                 if (hardLimit < DESIRED_HARD_LIMIT) {
                     final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
                             .subject(this.getClass().getName())
-                            .satisfactory(false)
+                            .outcome(RuntimeValidatorResult.Outcome.FAILED)
                             .explanation(String.format("Hard limit for forked processes [%d] is less than desired hard limit [%d]", hardLimit, DESIRED_HARD_LIMIT))
                             .build();
                     results.add(result);
@@ -87,7 +87,7 @@ public class ForkedProcesses implements RuntimeValidator {
             } else {
                 final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                         .subject(this.getClass().getName())
-                        .satisfactory(false)
+                        .outcome(RuntimeValidatorResult.Outcome.FAILED)
                         .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()))
                         .build();
                 results.add(result);
@@ -95,7 +95,7 @@ public class ForkedProcesses implements RuntimeValidator {
         } catch (final IOException e) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.FAILED)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
             results.add(result);
@@ -104,7 +104,7 @@ public class ForkedProcesses implements RuntimeValidator {
         if (results.isEmpty()) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(true)
+                    .outcome(RuntimeValidatorResult.Outcome.SUCCESSFUL)
                     .build();
             results.add(result);
         }

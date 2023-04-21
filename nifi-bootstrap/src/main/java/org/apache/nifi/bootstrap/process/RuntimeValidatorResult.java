@@ -16,17 +16,14 @@
  */
 package org.apache.nifi.bootstrap.process;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class RuntimeValidatorResult  {
     private final String subject;
     private final String explanation;
-    private final boolean satisfactory;
+    private final Outcome outcome;
     protected RuntimeValidatorResult(final Builder builder) {
         this.subject = builder.subject;
         this.explanation = builder.explanation;
-        this.satisfactory = builder.satisfactory;
+        this.outcome = builder.outcome;
     }
 
     public String getSubject() {
@@ -37,14 +34,14 @@ public class RuntimeValidatorResult  {
         return explanation;
     }
 
-    public boolean isSatisfactory() {
-        return satisfactory;
+    public Outcome getOutcome() {
+        return outcome;
     }
 
     public static final class Builder {
         private String subject = "";
         private String explanation = "";
-        private boolean satisfactory = false;
+        private Outcome outcome = Outcome.FAILED;
 
         public Builder subject(final String subject) {
             if (subject != null) {
@@ -60,13 +57,21 @@ public class RuntimeValidatorResult  {
             return this;
         }
 
-        public Builder satisfactory(final boolean satisfactory) {
-            this.satisfactory = satisfactory;
+        public Builder outcome(final Outcome outcome) {
+            this.outcome = outcome;
             return this;
         }
 
         public RuntimeValidatorResult build() {
             return new RuntimeValidatorResult(this);
         }
+    }
+
+    public enum Outcome {
+        SUCCESSFUL,
+
+        FAILED,
+
+        SKIPPED;
     }
 }

@@ -51,7 +51,7 @@ public class TimedWaitDuration implements RuntimeValidator {
             if (configurationFile == null) {
                 final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                         .subject(this.getClass().getName())
-                        .satisfactory(false)
+                        .outcome(RuntimeValidatorResult.Outcome.SKIPPED)
                         .explanation("Configuration file is null")
                         .build();
                 results.add(result);
@@ -61,7 +61,7 @@ public class TimedWaitDuration implements RuntimeValidator {
         if (!configurationFile.canRead()) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.SKIPPED)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
             results.add(result);
@@ -76,14 +76,14 @@ public class TimedWaitDuration implements RuntimeValidator {
                 if (timedWaitDuration > DESIRED_TIMED_WAIT_DURATION) {
                     final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
                             .subject(this.getClass().getName())
-                            .satisfactory(false)
+                            .outcome(RuntimeValidatorResult.Outcome.FAILED)
                             .explanation(String.format("Timed wait duration [%ds] is higher than the advised timed wait duration [%ds]", timedWaitDuration, DESIRED_TIMED_WAIT_DURATION))                            .build();
                     results.add(result);
                 }
             } else {
                 final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                         .subject(this.getClass().getName())
-                        .satisfactory(false)
+                        .outcome(RuntimeValidatorResult.Outcome.FAILED)
                         .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()))
                         .build();
                 results.add(result);
@@ -91,7 +91,7 @@ public class TimedWaitDuration implements RuntimeValidator {
         } catch (final IOException e) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(false)
+                    .outcome(RuntimeValidatorResult.Outcome.FAILED)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
             results.add(result);
@@ -100,7 +100,7 @@ public class TimedWaitDuration implements RuntimeValidator {
         if (results.isEmpty()) {
             final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
                     .subject(this.getClass().getName())
-                    .satisfactory(true)
+                    .outcome(RuntimeValidatorResult.Outcome.SUCCESSFUL)
                     .build();
             results.add(result);
         }
@@ -115,6 +115,5 @@ public class TimedWaitDuration implements RuntimeValidator {
                 return;
             }
         }
-
     }
 }

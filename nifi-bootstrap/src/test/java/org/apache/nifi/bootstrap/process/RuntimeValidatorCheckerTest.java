@@ -91,17 +91,24 @@ public class RuntimeValidatorCheckerTest {
 
         final List<RuntimeValidatorResult> results = checker.check();
         assertEquals(5, results.size());
-        final List<RuntimeValidatorResult> failures = getFailures(results);
-        assertEquals(5, failures.size());
-        for (final RuntimeValidatorResult failure : failures) {
-            assertTrue(failure.getExplanation().contains("read"));
+        final List<RuntimeValidatorResult> skipped = getSkipped(results);
+        assertEquals(5, skipped.size());
+        for (final RuntimeValidatorResult result : skipped) {
+            assertTrue(result.getExplanation().contains("read"));
         }
     }
 
     private List<RuntimeValidatorResult> getFailures(final List<RuntimeValidatorResult> results) {
         return results
                 .stream()
-                .filter((result) -> !result.isSatisfactory())
+                .filter((result) -> result.getOutcome().equals(RuntimeValidatorResult.Outcome.FAILED))
+                .collect(Collectors.toList());
+    }
+
+    private List<RuntimeValidatorResult> getSkipped(final List<RuntimeValidatorResult> results) {
+        return results
+                .stream()
+                .filter((result) -> result.getOutcome().equals(RuntimeValidatorResult.Outcome.SKIPPED))
                 .collect(Collectors.toList());
     }
 

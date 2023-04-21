@@ -52,7 +52,7 @@ public class RuntimeValidatorChecker {
         }
         final List<RuntimeValidatorResult> failures = results
                 .stream()
-                .filter((result) -> !result.isSatisfactory())
+                .filter((result) -> result.getOutcome().equals(RuntimeValidatorResult.Outcome.FAILED))
                 .collect(Collectors.toList());
         if (!failures.isEmpty()) {
             logWarnings(failures);
