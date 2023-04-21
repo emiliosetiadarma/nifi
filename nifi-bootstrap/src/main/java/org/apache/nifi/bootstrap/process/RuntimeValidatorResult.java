@@ -19,13 +19,13 @@ package org.apache.nifi.bootstrap.process;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OperatingSystemConfigurationCheckResult {
+public class RuntimeValidatorResult  {
     private final String subject;
-    private final List<String> explanations;
+    private final String explanation;
     private final boolean satisfactory;
-    protected OperatingSystemConfigurationCheckResult(final Builder builder) {
+    protected RuntimeValidatorResult(final Builder builder) {
         this.subject = builder.subject;
-        this.explanations = builder.explanations;
+        this.explanation = builder.explanation;
         this.satisfactory = builder.satisfactory;
     }
 
@@ -33,8 +33,8 @@ public class OperatingSystemConfigurationCheckResult {
         return subject;
     }
 
-    public List<String> getExplanations() {
-        return explanations;
+    public String getExplanation() {
+        return explanation;
     }
 
     public boolean isSatisfactory() {
@@ -43,7 +43,7 @@ public class OperatingSystemConfigurationCheckResult {
 
     public static final class Builder {
         private String subject = "";
-        private List<String> explanations = new ArrayList<>();
+        private String explanation = "";
         private boolean satisfactory = false;
 
         public Builder subject(final String subject) {
@@ -55,7 +55,7 @@ public class OperatingSystemConfigurationCheckResult {
 
         public Builder explanation(final String explanation) {
             if (explanation != null) {
-                this.explanations.add(explanation);
+                this.explanation = explanation;
             }
             return this;
         }
@@ -65,8 +65,8 @@ public class OperatingSystemConfigurationCheckResult {
             return this;
         }
 
-        public OperatingSystemConfigurationCheckResult build() {
-            return new OperatingSystemConfigurationCheckResult(this);
+        public RuntimeValidatorResult build() {
+            return new RuntimeValidatorResult(this);
         }
     }
 }

@@ -19,10 +19,12 @@ package org.apache.nifi.bootstrap.process;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AvailablePorts implements OperatingSystemConfiguration {
+public class AvailablePorts implements RuntimeValidator {
     private static final String DIRECTORY = "/proc/sys/net/ipv4/ip_local_port_range";
     private static final String DIGITS_REGEX = "(\\d+)\\s+(\\d+)";
     private static final Pattern PATTERN = Pattern.compile(DIGITS_REGEX);
@@ -39,21 +41,25 @@ public class AvailablePorts implements OperatingSystemConfiguration {
     }
 
     @Override
-    public OperatingSystemConfigurationCheckResult check() {
-        final OperatingSystemConfigurationCheckResult.Builder resultBuilder = new OperatingSystemConfigurationCheckResult.Builder()
-                .subject(this.getClass().getName())
-                .satisfactory(true);
+    public List<RuntimeValidatorResult> check() {
+        final List<RuntimeValidatorResult> results = new ArrayList<>();
         if (configurationFile == null) {
-            return resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
                     .explanation("Configuration file is null")
                     .build();
+            results.add(result);
+            return results;
         }
         if (!configurationFile.canRead()) {
-            return resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
+            results.add(result);
+            return results;
         }
 
         try {
@@ -64,21 +70,37 @@ public class AvailablePorts implements OperatingSystemConfiguration {
                 final int higherPort = Integer.valueOf(matcher.group(2));
                 final int availablePorts = higherPort - lowerPort;
                 if (availablePorts < DESIRED_AVAILABLE_PORTS) {
-                    resultBuilder
+                    final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                            .subject(this.getClass().getName())
                             .satisfactory(false)
-                            .explanation(String.format("Number of available ports [%d] is less than the desired number of available ports [%d]", availablePorts, DESIRED_AVAILABLE_PORTS));
+                            .explanation(String.format("Number of available ports [%d] is less than the desired number of available ports [%d]", availablePorts, DESIRED_AVAILABLE_PORTS))
+                            .build();
+                    results.add(result);
                 }
             } else {
-                resultBuilder
+                final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                        .subject(this.getClass().getName())
                         .satisfactory(false)
-                        .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()));
-                return resultBuilder.build();
+                        .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()))
+                        .build();
+                results.add(result);
             }
         } catch (final IOException e) {
-            resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
-                    .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()));
+                    .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
+                    .build();
+            results.add(result);
         }
-        return resultBuilder.build();
+
+        if (results.isEmpty()) {
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
+                    .satisfactory(true)
+                    .build();
+            results.add(result);
+        }
+        return results;
     }
 }

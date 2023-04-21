@@ -19,10 +19,12 @@ package org.apache.nifi.bootstrap.process;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class TimedWaitDuration implements OperatingSystemConfiguration {
+public class TimedWaitDuration implements RuntimeValidator {
     private static final String[] POSSIBLE_DIRECTORIES = new String[] {
             "/proc/sys/net/ipv4/tcp_tw_timeout",
             "/proc/sys/net/netfilter/nf_conntrack_tcp_timeout_time_wait",
@@ -42,48 +44,67 @@ public class TimedWaitDuration implements OperatingSystemConfiguration {
     }
 
     @Override
-    public OperatingSystemConfigurationCheckResult check() {
-        final OperatingSystemConfigurationCheckResult.Builder resultBuilder = new OperatingSystemConfigurationCheckResult.Builder()
-                .subject(this.getClass().getName())
-                .satisfactory(true);
-
+    public List<RuntimeValidatorResult> check() {
+        final List<RuntimeValidatorResult> results = new ArrayList<>();
         if (configurationFile == null) {
             determineConfigurationFile();
             if (configurationFile == null) {
-                return resultBuilder
+                final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                        .subject(this.getClass().getName())
                         .satisfactory(false)
-                        .explanation("Configuration file for TimedWaitDuration cannot be read")
+                        .explanation("Configuration file is null")
                         .build();
+                results.add(result);
+                return results;
             }
         }
-
         if (!configurationFile.canRead()) {
-            return resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
-                    .explanation(String.format("Do not have read permissions for configuration file [%s]", configurationFile.getAbsolutePath()))
+                    .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
+            results.add(result);
+            return results;
         }
+
         try {
             final String timedWaitDurationString = new String(Files.readAllBytes(configurationFile.toPath()));
             final Matcher matcher = PATTERN.matcher(timedWaitDurationString);
             if (matcher.find()) {
                 final int timedWaitDuration = Integer.valueOf(matcher.group());
                 if (timedWaitDuration > DESIRED_TIMED_WAIT_DURATION) {
-                    resultBuilder
+                    final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
+                            .subject(this.getClass().getName())
                             .satisfactory(false)
-                            .explanation(String.format("Timed wait duration [%ds] is higher than the advised timed wait duration [%ds]", timedWaitDuration, DESIRED_TIMED_WAIT_DURATION));
+                            .explanation(String.format("Timed wait duration [%ds] is higher than the advised timed wait duration [%ds]", timedWaitDuration, DESIRED_TIMED_WAIT_DURATION))                            .build();
+                    results.add(result);
                 }
             } else {
-                resultBuilder
+                final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                        .subject(this.getClass().getName())
                         .satisfactory(false)
-                        .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()));
+                        .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()))
+                        .build();
+                results.add(result);
             }
         } catch (final IOException e) {
-            resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
-                    .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()));
+                    .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
+                    .build();
+            results.add(result);
         }
-        return resultBuilder.build();
+
+        if (results.isEmpty()) {
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
+                    .satisfactory(true)
+                    .build();
+            results.add(result);
+        }
+        return results;
     }
 
     private void determineConfigurationFile() {

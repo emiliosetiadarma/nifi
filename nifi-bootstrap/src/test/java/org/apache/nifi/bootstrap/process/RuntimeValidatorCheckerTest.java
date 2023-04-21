@@ -27,89 +27,86 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class OperatingSystemConfigurationCheckerTest {
-    private OperatingSystemConfigurationChecker checker;
+public class RuntimeValidatorCheckerTest {
+    private RuntimeValidatorChecker checker;
 
     @Test
     public void testAllSatisfactory() {
-        final List<OperatingSystemConfiguration> configurationClasses = getAllTestConfigurationClasses();
-        checker = new OperatingSystemConfigurationChecker(configurationClasses);
+        final List<RuntimeValidator> configurationClasses = getAllTestConfigurationClasses();
+        checker = new RuntimeValidatorChecker(configurationClasses);
 
-        final List<OperatingSystemConfigurationCheckResult> results = checker.check();
+        final List<RuntimeValidatorResult> results = checker.check();
         assertEquals(5, results.size());
-        final List<OperatingSystemConfigurationCheckResult> failures = getFailures(results);
+        final List<RuntimeValidatorResult> failures = getFailures(results);
         assertEquals(0, failures.size());
     }
 
     @Test
     public void testAllFailuresEmptyFiles() {
-        final List<OperatingSystemConfiguration> configurationClasses = new ArrayList<>();
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
         configurationClasses.add(new AvailablePorts(getTestFile("empty_file")));
         configurationClasses.add(new FileHandles(getTestFile("empty_file")));
         configurationClasses.add(new ForkedProcesses(getTestFile("empty_file")));
         configurationClasses.add(new Swappiness(getTestFile("empty_file")));
         configurationClasses.add(new TimedWaitDuration(getTestFile("empty_file")));
-        checker = new OperatingSystemConfigurationChecker(configurationClasses);
+        checker = new RuntimeValidatorChecker(configurationClasses);
 
-        final List<OperatingSystemConfigurationCheckResult> results = checker.check();
+        final List<RuntimeValidatorResult> results = checker.check();
         assertEquals(5, results.size());
-        final List<OperatingSystemConfigurationCheckResult> failures = getFailures(results);
+        final List<RuntimeValidatorResult> failures = getFailures(results);
         assertEquals(5, failures.size());
-        for (final OperatingSystemConfigurationCheckResult failure : failures) {
-            assertEquals(1, failure.getExplanations().size());
-            assertTrue(failure.getExplanations().get(0).contains("parse"));
+        for (final RuntimeValidatorResult failure : failures) {
+            assertTrue(failure.getExplanation().contains("parse"));
         }
     }
 
     @Test
     public void testAllFailuresUnparsable() {
-        final List<OperatingSystemConfiguration> configurationClasses = new ArrayList<>();
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
         configurationClasses.add(new AvailablePorts(getTestFile("unparsable")));
         configurationClasses.add(new FileHandles(getTestFile("unparsable")));
         configurationClasses.add(new ForkedProcesses(getTestFile("unparsable")));
         configurationClasses.add(new Swappiness(getTestFile("unparsable")));
         configurationClasses.add(new TimedWaitDuration(getTestFile("unparsable")));
-        checker = new OperatingSystemConfigurationChecker(configurationClasses);
+        checker = new RuntimeValidatorChecker(configurationClasses);
 
-        final List<OperatingSystemConfigurationCheckResult> results = checker.check();
+        final List<RuntimeValidatorResult> results = checker.check();
         assertEquals(5, results.size());
-        final List<OperatingSystemConfigurationCheckResult> failures = getFailures(results);
+        final List<RuntimeValidatorResult> failures = getFailures(results);
         assertEquals(5, failures.size());
-        for (final OperatingSystemConfigurationCheckResult failure : failures) {
-            assertEquals(1, failure.getExplanations().size());
-            assertTrue(failure.getExplanations().get(0).contains("parse"));
+        for (final RuntimeValidatorResult failure : failures) {
+            assertTrue(failure.getExplanation().contains("parse"));
         }
     }
 
     @Test
     public void testCannotFindFilesForConfiguration() {
-        final List<OperatingSystemConfiguration> configurationClasses = new ArrayList<>();
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
         configurationClasses.add(new AvailablePorts(new File("missing_file")));
         configurationClasses.add(new FileHandles(new File("missing_file")));
         configurationClasses.add(new ForkedProcesses(new File("missing_file")));
         configurationClasses.add(new Swappiness(new File("missing_file")));
         configurationClasses.add(new TimedWaitDuration(new File("missing_file")));
-        checker = new OperatingSystemConfigurationChecker(configurationClasses);
+        checker = new RuntimeValidatorChecker(configurationClasses);
 
-        final List<OperatingSystemConfigurationCheckResult> results = checker.check();
+        final List<RuntimeValidatorResult> results = checker.check();
         assertEquals(5, results.size());
-        final List<OperatingSystemConfigurationCheckResult> failures = getFailures(results);
+        final List<RuntimeValidatorResult> failures = getFailures(results);
         assertEquals(5, failures.size());
-        for (final OperatingSystemConfigurationCheckResult failure : failures) {
-            assertEquals(1, failure.getExplanations().size());
-            assertTrue(failure.getExplanations().get(0).contains("read"));
+        for (final RuntimeValidatorResult failure : failures) {
+            assertTrue(failure.getExplanation().contains("read"));
         }
     }
 
-    private List<OperatingSystemConfigurationCheckResult> getFailures(final List<OperatingSystemConfigurationCheckResult> results) {
+    private List<RuntimeValidatorResult> getFailures(final List<RuntimeValidatorResult> results) {
         return results
                 .stream()
                 .filter((result) -> !result.isSatisfactory())
                 .collect(Collectors.toList());
     }
 
-    private List<OperatingSystemConfiguration> getAllTestConfigurationClasses() {
-        final List<OperatingSystemConfiguration> configurationClasses = new ArrayList<>();
+    private List<RuntimeValidator> getAllTestConfigurationClasses() {
+        final List<RuntimeValidator> configurationClasses = new ArrayList<>();
         configurationClasses.add(new AvailablePorts(getTestFile("available_ports")));
         configurationClasses.add(new FileHandles(getTestFile("limits")));
         configurationClasses.add(new ForkedProcesses(getTestFile("limits")));

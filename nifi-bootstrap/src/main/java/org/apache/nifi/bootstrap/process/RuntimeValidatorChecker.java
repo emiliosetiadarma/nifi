@@ -24,11 +24,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class OperatingSystemConfigurationChecker {
-    private final List<OperatingSystemConfiguration> configurationClasses;
-    private static final Logger logger = LoggerFactory.getLogger(OperatingSystemConfigurationChecker.class);
+public class RuntimeValidatorChecker {
+    private final List<RuntimeValidator> configurationClasses;
+    private static final Logger logger = LoggerFactory.getLogger(RuntimeValidatorChecker.class);
 
-    public OperatingSystemConfigurationChecker() {
+    public RuntimeValidatorChecker() {
         this.configurationClasses = Arrays.asList(
                 new AvailablePorts(),
                 new FileHandles(),
@@ -38,21 +38,21 @@ public class OperatingSystemConfigurationChecker {
         );
     }
 
-    OperatingSystemConfigurationChecker(final List<OperatingSystemConfiguration> configurationClasses) {
+    RuntimeValidatorChecker(final List<RuntimeValidator> configurationClasses) {
         this.configurationClasses = configurationClasses;
     }
 
     /**
      * Checks all the system configuration settings that are supported to be checked
      */
-    public List<OperatingSystemConfigurationCheckResult> check() {
-        final List<OperatingSystemConfigurationCheckResult> results = new ArrayList<>();
-        for (final OperatingSystemConfiguration configuration: configurationClasses) {
-            results.add(configuration.check());
+    public List<RuntimeValidatorResult> check() {
+        final List<RuntimeValidatorResult> results = new ArrayList<>();
+        for (final RuntimeValidator configuration: configurationClasses) {
+            results.addAll(configuration.check());
         }
-        final List<OperatingSystemConfigurationCheckResult> failures = results
+        final List<RuntimeValidatorResult> failures = results
                 .stream()
-                .filter(OperatingSystemConfigurationCheckResult::isSatisfactory)
+                .filter((result) -> !result.isSatisfactory())
                 .collect(Collectors.toList());
         if (!failures.isEmpty()) {
             logWarnings(failures);
@@ -61,11 +61,9 @@ public class OperatingSystemConfigurationChecker {
         return results;
     }
 
-    private void logWarnings(final List<OperatingSystemConfigurationCheckResult> results) {
-        for (final OperatingSystemConfigurationCheckResult result : results) {
-            for (final String explanation : result.getExplanations()) {
-                logger.warn("Configuration [{}] not satisfactory due to: {}", result.getSubject(), explanation);
-            }
+    private void logWarnings(final List<RuntimeValidatorResult> results) {
+        for (final RuntimeValidatorResult result : results) {
+            logger.warn("Configuration [{}] not satisfactory due to: {}", result.getSubject(), result.getExplanation());
         }
     }
 }

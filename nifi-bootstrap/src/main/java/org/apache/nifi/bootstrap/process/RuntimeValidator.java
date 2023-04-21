@@ -16,12 +16,13 @@
  */
 package org.apache.nifi.bootstrap.process;
 
-public interface OperatingSystemConfiguration {
+import java.util.List;
+
+public interface RuntimeValidator {
     /**
-     * Checks if the given operating system configaturation is within NiFi's
-     * best practices
+     * Checks if the given runtime configuration is within NiFi's best practices
      *
-     * @return
+     * @return a List of {@code RuntimeValidatorResult}
      */
-    public OperatingSystemConfigurationCheckResult check();
+    public List<RuntimeValidatorResult> check();
 }

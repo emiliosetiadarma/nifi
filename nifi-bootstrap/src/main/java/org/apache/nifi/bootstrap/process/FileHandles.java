@@ -19,10 +19,12 @@ package org.apache.nifi.bootstrap.process;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class FileHandles implements OperatingSystemConfiguration {
+public class FileHandles implements RuntimeValidator {
     private static final String DIRECTORY = String.format("/proc/%s/limits", ProcessHandle.current().pid());
     private static final String MAX_OPEN_FILES_REGEX = "Max open files\\s+(\\d+)\\s+(\\d+)\\s+files\\s+";
     private static final Pattern PATTERN = Pattern.compile(MAX_OPEN_FILES_REGEX);
@@ -40,21 +42,25 @@ public class FileHandles implements OperatingSystemConfiguration {
     }
 
     @Override
-    public OperatingSystemConfigurationCheckResult check() {
-        final OperatingSystemConfigurationCheckResult.Builder resultBuilder = new OperatingSystemConfigurationCheckResult.Builder()
-                .subject(this.getClass().getName())
-                .satisfactory(true);
+    public List<RuntimeValidatorResult> check() {
+        final List<RuntimeValidatorResult> results = new ArrayList<>();
         if (configurationFile == null) {
-            return resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
                     .explanation("Configuration file is null")
                     .build();
+            results.add(result);
+            return results;
         }
         if (!configurationFile.canRead()) {
-            return resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
                     .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
                     .build();
+            results.add(result);
+            return results;
         }
 
         try {
@@ -64,25 +70,45 @@ public class FileHandles implements OperatingSystemConfiguration {
                 final int softLimit = Integer.valueOf(matcher.group(1));
                 final int hardLimit = Integer.valueOf(matcher.group(2));
                 if (softLimit < DESIRED_SOFT_LIMIT) {
-                    resultBuilder
+                    final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
+                            .subject(this.getClass().getName())
                             .satisfactory(false)
-                            .explanation(String.format("Soft limit for file handles [%d] is less than desired soft limit [%d]", softLimit, DESIRED_SOFT_LIMIT));
+                            .explanation(String.format("Soft limit for file handles [%d] is less than desired soft limit [%d]", softLimit, DESIRED_SOFT_LIMIT))
+                            .build();
+                    results.add(result);
                 }
                 if (hardLimit < DESIRED_HARD_LIMIT) {
-                    resultBuilder
+                    final RuntimeValidatorResult result =  new RuntimeValidatorResult.Builder()
+                            .subject(this.getClass().getName())
                             .satisfactory(false)
-                            .explanation(String.format("Hard limit for file handles [%d] is less than desired hard limit [%d]", hardLimit, DESIRED_HARD_LIMIT));
+                            .explanation(String.format("Hard limit for file handles [%d] is less than desired hard limit [%d]", hardLimit, DESIRED_HARD_LIMIT))
+                            .build();
+                    results.add(result);
                 }
             } else {
-                resultBuilder
+                final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                        .subject(this.getClass().getName())
                         .satisfactory(false)
-                        .explanation(String.format("Configuration file [%s] cannot be parsed", DIRECTORY));
+                        .explanation(String.format("Configuration file [%s] cannot be parsed", configurationFile.getAbsolutePath()))
+                        .build();
+                results.add(result);
             }
         } catch (final IOException e) {
-            resultBuilder
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
                     .satisfactory(false)
-                    .explanation(String.format("Configuration file [%s] cannot be read", DIRECTORY));
+                    .explanation(String.format("Configuration file [%s] cannot be read", configurationFile.getAbsolutePath()))
+                    .build();
+            results.add(result);
         }
-        return resultBuilder.build();
+
+        if (results.isEmpty()) {
+            final RuntimeValidatorResult result = new RuntimeValidatorResult.Builder()
+                    .subject(this.getClass().getName())
+                    .satisfactory(true)
+                    .build();
+            results.add(result);
+        }
+        return results;
     }
 }
