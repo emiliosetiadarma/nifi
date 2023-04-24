@@ -16,6 +16,9 @@
  */
 package org.apache.nifi.bootstrap.process;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,6 +36,7 @@ public class TimedWaitDuration implements RuntimeValidator {
     private static final String DIGITS_REGEX = "\\d+";
     private static final Pattern PATTERN = Pattern.compile(DIGITS_REGEX);
     private static final int DESIRED_TIMED_WAIT_DURATION = 1;
+    private static final Logger logger = LoggerFactory.getLogger(TimedWaitDuration.class);
 
     private File configurationFile;
 
@@ -70,6 +74,7 @@ public class TimedWaitDuration implements RuntimeValidator {
 
         try {
             final String timedWaitDurationString = new String(Files.readAllBytes(configurationFile.toPath()));
+            logger.warn("Read file: {}", timedWaitDurationString);
             final Matcher matcher = PATTERN.matcher(timedWaitDurationString);
             if (matcher.find()) {
                 final int timedWaitDuration = Integer.valueOf(matcher.group());

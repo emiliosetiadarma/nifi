@@ -50,12 +50,31 @@ public class RuntimeValidatorChecker {
         for (final RuntimeValidator configuration: configurationClasses) {
             results.addAll(configuration.check());
         }
+        final List<RuntimeValidatorResult> successes = results
+                .stream()
+                .filter((result) -> result.getOutcome().equals(RuntimeValidatorResult.Outcome.SUCCESSFUL))
+                .collect(Collectors.toList());
+        if (!successes.isEmpty()) {
+            for (final RuntimeValidatorResult result : successes) {
+                logger.warn("Configuration [{}] check successful", result.getSubject());
+            }
+        }
         final List<RuntimeValidatorResult> failures = results
                 .stream()
                 .filter((result) -> result.getOutcome().equals(RuntimeValidatorResult.Outcome.FAILED))
                 .collect(Collectors.toList());
         if (!failures.isEmpty()) {
             logWarnings(failures);
+        }
+
+        final List<RuntimeValidatorResult> skipped = results
+                .stream()
+                .filter((result) -> result.getOutcome().equals(RuntimeValidatorResult.Outcome.SKIPPED))
+                .collect(Collectors.toList());
+        if (!skipped.isEmpty()) {
+            for (final RuntimeValidatorResult result : skipped) {
+                logger.warn("Configuration [{}] not skipped due to: {}", result.getSubject(), result.getExplanation());
+            }
         }
 
         return results;

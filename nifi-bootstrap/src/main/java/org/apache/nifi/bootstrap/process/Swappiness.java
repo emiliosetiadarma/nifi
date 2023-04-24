@@ -16,6 +16,9 @@
  */
 package org.apache.nifi.bootstrap.process;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,6 +32,7 @@ public class Swappiness implements RuntimeValidator {
     private static final String DIGITS_REGEX = "\\d+";
     private static final Pattern PATTERN = Pattern.compile(DIGITS_REGEX);
     private static final int DESIRED_SWAPPINESS = 0;
+    private static final Logger logger = LoggerFactory.getLogger(Swappiness.class);
 
     private final File configurationFile;
 
@@ -64,6 +68,7 @@ public class Swappiness implements RuntimeValidator {
 
         try {
             final String swappinessString = new String(Files.readAllBytes(configurationFile.toPath()));
+            logger.warn("Read file: {}", swappinessString);
             final Matcher matcher = PATTERN.matcher(swappinessString);
             if (matcher.find()) {
                 final int swappiness = Integer.valueOf(matcher.group());

@@ -16,6 +16,9 @@
  */
 package org.apache.nifi.bootstrap.process;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,6 +33,7 @@ public class ForkedProcesses implements RuntimeValidator {
     private static final Pattern PATTERN = Pattern.compile(MAX_PROCESSES_REGEX);
     private static final int DESIRED_SOFT_LIMIT = 10000;
     private static final int DESIRED_HARD_LIMIT = 10000;
+    private static final Logger logger = LoggerFactory.getLogger(ForkedProcesses.class);
     private final File configurationFile;
 
     public ForkedProcesses() {
@@ -64,6 +68,7 @@ public class ForkedProcesses implements RuntimeValidator {
 
         try {
             final String fileHandlesString = new String(Files.readAllBytes(configurationFile.toPath()));
+            logger.warn("Read file: {}", fileHandlesString);
             final Matcher matcher = PATTERN.matcher(fileHandlesString);
             if (matcher.find()) {
                 final int softLimit = Integer.valueOf(matcher.group(1));
