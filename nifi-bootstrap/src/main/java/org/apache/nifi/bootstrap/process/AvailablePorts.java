@@ -70,19 +70,13 @@ public class AvailablePorts implements RuntimeValidator {
 
         try {
             logger.warn("Config being checked: {}", this.getClass().getName());
-            final FileInputStream fileInputStream = new FileInputStream(DIRECTORY);
-            logger.warn("Available bytes: {}", fileInputStream.available());
-
-            File myObj = new File(DIRECTORY);
-            Scanner myReader = new Scanner(myObj);
+            final Scanner scanner = new Scanner(configurationFile);
             final StringBuilder sb = new StringBuilder();
-            while (myReader.hasNextLine()) {
-                String data = myReader.nextLine();
-                sb.append(data);
+            while (scanner.hasNextLine()) {
+                sb.append(scanner.nextLine());
             }
-            myReader.close();
+            scanner.close();
             final String portRangeString = sb.toString();
-//            final String portRangeString = new String(Files.readAllBytes(configurationFile.toPath()));
             logger.warn("Read file: {}", portRangeString);
             final Matcher matcher = PATTERN.matcher(portRangeString);
             if (matcher.find()) {
