@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -67,6 +68,9 @@ public class AvailablePorts implements RuntimeValidator {
         }
 
         try {
+            logger.warn("Config being checked: {}", this.getClass().getName());
+            final FileInputStream fileInputStream = new FileInputStream(DIRECTORY);
+            logger.warn("Available bytes: {}", fileInputStream.available());
             final String portRangeString = new String(Files.readAllBytes(configurationFile.toPath()));
             logger.warn("Read file: {}", portRangeString);
             final Matcher matcher = PATTERN.matcher(portRangeString);
