@@ -18,9 +18,9 @@ package org.apache.nifi.bootstrap.process;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -63,7 +63,12 @@ public class Swappiness implements RuntimeValidator {
         }
 
         try {
-            final String swappinessString = new String(Files.readAllBytes(configurationFile.toPath()));
+            final Scanner scanner = new Scanner(configurationFile);
+            final StringBuilder sb = new StringBuilder();
+            while (scanner.hasNextLine()) {
+                sb.append(scanner.nextLine());
+            }
+            final String swappinessString = sb.toString();
             final Matcher matcher = PATTERN.matcher(swappinessString);
             if (matcher.find()) {
                 final int swappiness = Integer.valueOf(matcher.group());
