@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,7 +72,17 @@ public class AvailablePorts implements RuntimeValidator {
             logger.warn("Config being checked: {}", this.getClass().getName());
             final FileInputStream fileInputStream = new FileInputStream(DIRECTORY);
             logger.warn("Available bytes: {}", fileInputStream.available());
-            final String portRangeString = new String(Files.readAllBytes(configurationFile.toPath()));
+
+            File myObj = new File(DIRECTORY);
+            Scanner myReader = new Scanner(myObj);
+            final StringBuilder sb = new StringBuilder();
+            while (myReader.hasNextLine()) {
+                String data = myReader.nextLine();
+                sb.append(data);
+            }
+            myReader.close();
+            final String portRangeString = sb.toString();
+//            final String portRangeString = new String(Files.readAllBytes(configurationFile.toPath()));
             logger.warn("Read file: {}", portRangeString);
             final Matcher matcher = PATTERN.matcher(portRangeString);
             if (matcher.find()) {
