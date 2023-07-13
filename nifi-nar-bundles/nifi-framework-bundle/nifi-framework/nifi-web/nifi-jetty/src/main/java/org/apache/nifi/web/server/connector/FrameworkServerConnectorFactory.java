@@ -30,10 +30,12 @@ import org.apache.nifi.util.NiFiProperties;
 import org.apache.nifi.web.server.util.StoreScanner;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.util.resource.PathResource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import javax.net.ssl.SSLContext;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;

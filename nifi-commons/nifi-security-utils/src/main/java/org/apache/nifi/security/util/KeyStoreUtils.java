@@ -380,7 +380,6 @@ public class KeyStoreUtils {
      * @return true if valid; false otherwise
      */
     public static boolean isStoreValid(final URL keystore, final KeystoreType keystoreType, final char[] password) {
-
         if (keystore == null) {
             throw new IllegalArgumentException("Keystore may not be null");
         } else if (keystoreType == null) {
