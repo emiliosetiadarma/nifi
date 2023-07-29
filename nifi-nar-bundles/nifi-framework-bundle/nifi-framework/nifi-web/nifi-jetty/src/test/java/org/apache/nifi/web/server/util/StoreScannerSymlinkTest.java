@@ -73,8 +73,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 @ExtendWith(WorkDirExtension.class)
-public class StoreScannerSymlinkTest
-{
+public class StoreScannerSymlinkTest {
     public WorkDir testdir;
     private Path keystoreDir;
     private StoreScanner keyStoreScanner;
@@ -104,18 +103,6 @@ public class StoreScannerSymlinkTest
                 TlsPlatform.getLatestProtocol()
         );
 
-        final Path keystorePath = useKeystore(oldKeystoreConfiguration.getKeystorePath().toString(), "keystore.p12");
-        serverConfiguration = new StandardTlsConfiguration(
-                keystorePath.toString(),
-                KEYSTORE_PASSWORD,
-                KEYSTORE_PASSWORD,
-                KeystoreType.PKCS12,
-                truststorePath.toString(),
-                TRUSTSTORE_PASSWORD,
-                KeystoreType.PKCS12,
-                TlsPlatform.getLatestProtocol()
-        );
-
         final Path newKeystorePath = MavenTestingUtils.getTestResourcePath("newKeystore.p12");
         newKeystoreConfiguration = new StandardTlsConfiguration(
                 newKeystorePath.toString(),
@@ -130,15 +117,24 @@ public class StoreScannerSymlinkTest
     }
 
     @FunctionalInterface
-    public interface Configuration
-    {
+    public interface Configuration {
         void configure(SslContextFactory sslContextFactory) throws Exception;
     }
 
-    public void start() throws Exception
-    {
-        start(sslContextFactory ->
-        {
+    public void start() throws Exception {
+        start(sslContextFactory -> {
+            final Path keystorePath = useKeystore(oldKeystoreConfiguration.getKeystorePath().toString(), "keystore.p12");
+            final Path truststorePath = MavenTestingUtils.getTestResourcePath("truststore.p12");
+            serverConfiguration = new StandardTlsConfiguration(
+                    keystorePath.toString(),
+                    KEYSTORE_PASSWORD,
+                    KEYSTORE_PASSWORD,
+                    KeystoreType.PKCS12,
+                    truststorePath.toString(),
+                    TRUSTSTORE_PASSWORD,
+                    KeystoreType.PKCS12,
+                    TlsPlatform.getLatestProtocol()
+            );
             sslContextFactory.setKeyStorePath(serverConfiguration.getKeystorePath());
             sslContextFactory.setKeyStorePassword(serverConfiguration.getKeystorePassword());
             sslContextFactory.setKeyManagerPassword(serverConfiguration.getKeyPassword());
@@ -146,8 +142,7 @@ public class StoreScannerSymlinkTest
         });
     }
 
-    public void start(final Configuration configuration) throws Exception
-    {
+    public void start(final Configuration configuration) throws Exception {
         sslContextFactory = new SslContextFactory.Server();
         configuration.configure(sslContextFactory);
         final SSLContext sslContext = createContext(serverConfiguration);
@@ -159,8 +154,16 @@ public class StoreScannerSymlinkTest
     }
 
     @Test
-    public void testKeystoreHotReload() throws Exception
-    {
+    public void testShouldNotTriggerReload() throws Exception {
+        start();
+        final SSLContext prevSSLContext = sslContextFactory.getSslContext();
+        keyStoreScanner.scan(10000);
+        final SSLContext nextSSLContext = sslContextFactory.getSslContext();
+        assertTrue(prevSSLContext == nextSSLContext);
+    }
+
+    @Test
+    public void testKeystoreHotReload() throws Exception {
         start();
         final SSLContext prevSSLContext = sslContextFactory.getSslContext();
         useKeystore(newKeystoreConfiguration.getKeystorePath().toString(), "keystore.p12");
@@ -170,13 +173,93 @@ public class StoreScannerSymlinkTest
         assertTrue(prevSSLContext != nextSSLContext);
     }
 
-    public Path useKeystore(String keystoreToUse, String keystorePath) throws Exception
-    {
+    @Test
+    public void testReloadChangingSymbolicLinkSameDirectory() throws Exception {
+        assumeFileSystemSupportsSymlink();
+        Path newKeyStore = useKeystore("newKeystore.p12", "newKeyStore.p12");
+        Path oldKeyStore = useKeystore("oldKeystore.p12", "oldKeyStore.p12");
+
+        Path symlinkKeystorePath = keystoreDir.resolve("symlinkKeystore.p12");
+        start(sslContextFactory ->
+        {
+            Files.createSymbolicLink(symlinkKeystorePath, oldKeyStore);
+
+            final Path truststorePath = MavenTestingUtils.getTestResourcePath("truststore.p12");
+            serverConfiguration = new StandardTlsConfiguration(
+                    symlinkKeystorePath.toString(),
+                    KEYSTORE_PASSWORD,
+                    KEYSTORE_PASSWORD,
+                    KeystoreType.PKCS12,
+                    truststorePath.toString(),
+                    TRUSTSTORE_PASSWORD,
+                    KeystoreType.PKCS12,
+                    TlsPlatform.getLatestProtocol()
+            );
+            sslContextFactory.setKeyStorePath(serverConfiguration.getKeystorePath());
+            sslContextFactory.setKeyStorePassword(serverConfiguration.getKeystorePassword());
+            sslContextFactory.setKeyManagerPassword(serverConfiguration.getKeyPassword());
+            sslContextFactory.setKeyStoreResource(new PathResource(Path.of(serverConfiguration.getKeystorePath())));
+        });
+
+        final SSLContext prevSSLContext = sslContextFactory.getSslContext();
+
+        // Change the symlink to point to the newKeyStore file location which has a later expiry date.
+        Files.delete(symlinkKeystorePath);
+        Files.createSymbolicLink(symlinkKeystorePath, newKeyStore);
+
+        keyStoreScanner.scan(10000);
+
+        final SSLContext nextSSLContext = sslContextFactory.getSslContext();
+
+        assertTrue(prevSSLContext != nextSSLContext);
+    }
+
+    @Test
+    public void testReloadChangingSymbolicLinkDifferentDirectory() throws Exception {
+        assumeFileSystemSupportsSymlink();
+        Path newKeyStore = useKeystore("newKeystore.p12", "target/newKeyStore.p12");
+        Path oldKeyStore = useKeystore("oldKeystore.p12", "target/oldKeyStore.p12");
+
+        Path symlinkKeystorePath = keystoreDir.resolve("symlinkKeystore.p12");
+        start(sslContextFactory ->
+        {
+            Files.createSymbolicLink(symlinkKeystorePath, oldKeyStore);
+
+            final Path truststorePath = MavenTestingUtils.getTestResourcePath("truststore.p12");
+            serverConfiguration = new StandardTlsConfiguration(
+                    symlinkKeystorePath.toString(),
+                    KEYSTORE_PASSWORD,
+                    KEYSTORE_PASSWORD,
+                    KeystoreType.PKCS12,
+                    truststorePath.toString(),
+                    TRUSTSTORE_PASSWORD,
+                    KeystoreType.PKCS12,
+                    TlsPlatform.getLatestProtocol()
+            );
+            sslContextFactory.setKeyStorePath(serverConfiguration.getKeystorePath());
+            sslContextFactory.setKeyStorePassword(serverConfiguration.getKeystorePassword());
+            sslContextFactory.setKeyManagerPassword(serverConfiguration.getKeyPassword());
+            sslContextFactory.setKeyStoreResource(new PathResource(Path.of(serverConfiguration.getKeystorePath())));
+        });
+
+        final SSLContext prevSSLContext = sslContextFactory.getSslContext();
+
+        // Change the symlink to point to the newKeyStore file location which has a later expiry date.
+        Files.delete(symlinkKeystorePath);
+        Files.createSymbolicLink(symlinkKeystorePath, newKeyStore);
+
+        keyStoreScanner.scan(10000);
+
+        final SSLContext nextSSLContext = sslContextFactory.getSslContext();
+
+        assertTrue(prevSSLContext != nextSSLContext);
+    }
+
+    public Path useKeystore(String keystoreToUse, String keystorePath) throws Exception {
         return useKeystore(MavenTestingUtils.getTestResourcePath(keystoreToUse), keystoreDir.resolve(keystorePath));
     }
 
-    public Path useKeystore(Path keystoreToUse, Path keystorePath) throws Exception
-    {
+    public Path useKeystore(Path keystoreToUse, Path keystorePath) throws Exception {
         if (Files.exists(keystorePath))
             Files.delete(keystorePath);
 
@@ -188,8 +271,7 @@ public class StoreScannerSymlinkTest
         return keystorePath.toAbsolutePath();
     }
 
-    public Path useKeystore(String keystore) throws Exception
-    {
+    public Path useKeystore(String keystore) throws Exception {
         Path keystorePath = keystoreDir.resolve("keystore");
         if (Files.exists(keystorePath))
             Files.delete(keystorePath);
@@ -202,8 +284,7 @@ public class StoreScannerSymlinkTest
         return keystorePath.toAbsolutePath();
     }
 
-    private void assumeFileSystemSupportsSymlink() throws IOException
-    {
+    private void assumeFileSystemSupportsSymlink() throws IOException {
         // Make symlink
         Path dir = MavenTestingUtils.getTargetTestingPath("symlink-test");
         FS.ensureEmpty(dir);
@@ -224,21 +305,15 @@ public class StoreScannerSymlinkTest
         }
     }
 
-    private static class DefaultTrustManager implements X509TrustManager
-    {
+    private static class DefaultTrustManager implements X509TrustManager {
         @Override
-        public void checkClientTrusted(X509Certificate[] arg0, String arg1)
-        {
-        }
+        public void checkClientTrusted(X509Certificate[] arg0, String arg1) {}
 
         @Override
-        public void checkServerTrusted(X509Certificate[] arg0, String arg1)
-        {
-        }
+        public void checkServerTrusted(X509Certificate[] arg0, String arg1) {}
 
         @Override
-        public X509Certificate[] getAcceptedIssuers()
-        {
+        public X509Certificate[] getAcceptedIssuers() {
             return null;
         }
     }
