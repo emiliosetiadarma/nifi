@@ -217,6 +217,7 @@ public class StoreScannerSymlinkTest {
     @Test
     public void testReloadChangingSymbolicLinkDifferentDirectory() throws Exception {
         assumeFileSystemSupportsSymlink();
+        Files.createDirectory(Path.of(keystoreDir.toString() + "/target"));
         Path newKeyStore = useKeystore("newKeystore.p12", "target/newKeyStore.p12");
         Path oldKeyStore = useKeystore("oldKeystore.p12", "target/oldKeyStore.p12");
 
