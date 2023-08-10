@@ -83,7 +83,7 @@ public class StoreScannerTest {
         for (final Map.Entry<File, StoreScanner> entry : filesToScannerMap.entrySet()) {
             final File file = entry.getKey();
             final StoreScanner scanner = entry.getValue();
-            scanner.fileAdded(file.getAbsolutePath());
+            scanner.added(file.toPath());
 
             verify(sslContextFactory).reload(consumerArgumentCaptor.capture());
 
@@ -99,7 +99,7 @@ public class StoreScannerTest {
         for (final Map.Entry<File, StoreScanner> entry : filesToScannerMap.entrySet()) {
             final File file = entry.getKey();
             final StoreScanner scanner = entry.getValue();
-            scanner.fileChanged(file.getAbsolutePath());
+            scanner.changed(file.toPath());
 
             verify(sslContextFactory).reload(consumerArgumentCaptor.capture());
 
@@ -115,7 +115,7 @@ public class StoreScannerTest {
         for (final Map.Entry<File, StoreScanner> entry : filesToScannerMap.entrySet()) {
             final File file = entry.getKey();
             final StoreScanner scanner = entry.getValue();
-            scanner.fileRemoved(file.getAbsolutePath());
+            scanner.removed(file.toPath());
 
             verify(sslContextFactory).reload(consumerArgumentCaptor.capture());
 

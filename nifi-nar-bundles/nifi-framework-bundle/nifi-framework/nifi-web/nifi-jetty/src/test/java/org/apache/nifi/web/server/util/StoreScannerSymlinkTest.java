@@ -82,7 +82,6 @@ public class StoreScannerSymlinkTest {
     private TlsConfiguration newKeystoreConfiguration;
     private SslContextFactory.Server sslContextFactory;
 
-    private static final String HOSTNAME = "localhost";
     private static final String KEYSTORE_PASSWORD = "5a66d958870305c6c39447e1f22fff8f";
     private static final String TRUSTSTORE_PASSWORD = "43b4500097ea70b8d0765347913df4ad";
 
@@ -156,8 +155,9 @@ public class StoreScannerSymlinkTest {
     @Test
     public void testShouldNotTriggerReload() throws Exception {
         start();
+        Thread.sleep(5000);
         final SSLContext prevSSLContext = sslContextFactory.getSslContext();
-        keyStoreScanner.scan(10000);
+        keyStoreScanner.scan();
         final SSLContext nextSSLContext = sslContextFactory.getSslContext();
         assertTrue(prevSSLContext == nextSSLContext);
     }
@@ -165,9 +165,12 @@ public class StoreScannerSymlinkTest {
     @Test
     public void testKeystoreHotReload() throws Exception {
         start();
+        Thread.sleep(5000);
+
         final SSLContext prevSSLContext = sslContextFactory.getSslContext();
         useKeystore(newKeystoreConfiguration.getKeystorePath().toString(), "keystore.p12");
-        keyStoreScanner.scan(10000);
+
+        keyStoreScanner.scan();
         final SSLContext nextSSLContext = sslContextFactory.getSslContext();
 
         assertTrue(prevSSLContext != nextSSLContext);
@@ -201,13 +204,15 @@ public class StoreScannerSymlinkTest {
             sslContextFactory.setKeyStoreResource(new PathResource(Path.of(serverConfiguration.getKeystorePath())));
         });
 
+        Thread.sleep(5000);
+
         final SSLContext prevSSLContext = sslContextFactory.getSslContext();
 
         // Change the symlink to point to the newKeyStore file location which has a later expiry date.
         Files.delete(symlinkKeystorePath);
         Files.createSymbolicLink(symlinkKeystorePath, newKeyStore);
 
-        keyStoreScanner.scan(10000);
+        keyStoreScanner.scan();
 
         final SSLContext nextSSLContext = sslContextFactory.getSslContext();
 
@@ -243,13 +248,15 @@ public class StoreScannerSymlinkTest {
             sslContextFactory.setKeyStoreResource(new PathResource(Path.of(serverConfiguration.getKeystorePath())));
         });
 
+        Thread.sleep(5000);
+
         final SSLContext prevSSLContext = sslContextFactory.getSslContext();
 
         // Change the symlink to point to the newKeyStore file location which has a later expiry date.
         Files.delete(symlinkKeystorePath);
         Files.createSymbolicLink(symlinkKeystorePath, newKeyStore);
 
-        keyStoreScanner.scan(10000);
+        keyStoreScanner.scan();
 
         final SSLContext nextSSLContext = sslContextFactory.getSslContext();
 

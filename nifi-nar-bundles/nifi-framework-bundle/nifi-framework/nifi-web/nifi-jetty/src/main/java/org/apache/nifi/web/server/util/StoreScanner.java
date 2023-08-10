@@ -30,6 +30,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -39,18 +40,18 @@ import static org.apache.nifi.security.util.SslContextFactory.createSslContext;
 /**
  * File Scanner for Keystore or Truststore reloading using provided TLS Configuration
  */
-public class StoreScanner extends ContainerLifeCycle implements Scanner.DiscreteListener{
+public class StoreScanner extends ContainerLifeCycle implements ScannerListener {
     private static final Logger LOG = Log.getLogger(StoreScanner.class);
 
     private final SslContextFactory sslContextFactory;
     private final TlsConfiguration tlsConfiguration;
     private final File file;
-    private final Scanner scanner;
+    private final TestScanner scanner;
     private final String resourceName;
 
     public StoreScanner(final SslContextFactory sslContextFactory,
-                           final TlsConfiguration tlsConfiguration,
-                           final Resource resource) {
+                        final TlsConfiguration tlsConfiguration,
+                        final Resource resource) {
         this.sslContextFactory = sslContextFactory;
         this.tlsConfiguration = tlsConfiguration;
         this.resourceName = resource.getName();
@@ -76,32 +77,29 @@ public class StoreScanner extends ContainerLifeCycle implements Scanner.Discrete
             throw new IllegalArgumentException(String.format("error obtaining %s dir", resourceName));
         }
 
-        scanner = new Scanner(null, false);
+        scanner = new TestScanner(resourceName + " scanner");
         scanner.setScanDirs(Collections.singletonList(parentFile));
         scanner.setScanInterval(1);
-        scanner.setReportDirs(false);
-        scanner.setReportExistingFilesOnStartup(false);
-        scanner.setScanDepth(1);
         scanner.addListener(this);
         addBean(scanner);
     }
 
     @Override
-    public void fileAdded(final String filename) {
-        LOG.debug("Resource [{}] File [{}] added", resourceName, filename);
-        reloadMatched(filename);
+    public void added(final Path path) {
+        LOG.debug("Resource [{}] File [{}] added", resourceName, path);
+        reloadMatched(path.toString());
     }
 
     @Override
-    public void fileChanged(final String filename) {
-        LOG.debug("Resource [{}] File [{}] changed", resourceName, filename);
-        reloadMatched(filename);
+    public void changed(final Path path) {
+        LOG.debug("Resource [{}] File [{}] changed", resourceName, path);
+        reloadMatched(path.toString());
     }
 
     @Override
-    public void fileRemoved(final String filename) {
-        LOG.debug("Resource [{}] File [{}] removed", resourceName, filename);
-        reloadMatched(filename);
+    public void removed(final Path path) {
+        LOG.debug("Resource [{}] File [{}] removed", resourceName, path);
+        reloadMatched(path.toString());
     }
 
     @ManagedOperation(
@@ -118,19 +116,18 @@ public class StoreScanner extends ContainerLifeCycle implements Scanner.Discrete
     @ManagedOperation(value = "Scan for changes in the SSL Keystore", impact = "ACTION")
     public boolean scan(long waitMillis)
     {
-        if (LOG.isDebugEnabled())
+        if (LOG.isDebugEnabled()) {
             LOG.debug("scanning");
+        }
 
         CompletableFuture<Boolean> cf = new CompletableFuture<>();
-        try
-        {
+        try {
             // Perform 2 scans to be sure that the scan is stable.
             scanner.scan(Callback.from(() ->
                     scanner.scan(Callback.from(() -> cf.complete(true), cf::completeExceptionally)), cf::completeExceptionally));
             return cf.get(waitMillis, TimeUnit.MILLISECONDS);
         }
-        catch (Exception e)
-        {
+        catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -155,7 +152,7 @@ public class StoreScanner extends ContainerLifeCycle implements Scanner.Discrete
         return this.scanner.getScanInterval();
     }
 
-    public void setScanInterval(int scanInterval) {
+    public void setScanInterval(final int scanInterval) {
         this.scanner.setScanInterval(scanInterval);
     }
 

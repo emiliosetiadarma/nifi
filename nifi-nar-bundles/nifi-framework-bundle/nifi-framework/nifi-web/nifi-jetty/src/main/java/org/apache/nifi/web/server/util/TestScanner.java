@@ -16,12 +16,6 @@
  */
 package org.apache.nifi.web.server.util;
 
-import org.eclipse.jetty.util.component.ContainerLifeCycle;
-import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
-import org.eclipse.jetty.util.thread.Scheduler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitOption;
@@ -39,33 +33,43 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.component.ContainerLifeCycle;
+import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
+import org.eclipse.jetty.util.thread.Scheduler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class TestScanner extends ContainerLifeCycle {
     public static final int DEFAULT_SCAN_DEPTH = 1;
     private static final Logger LOG = LoggerFactory.getLogger(TestScanner.class);
 
-    private int _scanInterval;
-    private final List<ScannerListener> _listeners = new CopyOnWriteArrayList<>();
-    private Map<Path, FileMetaData> _prevScan;
-    private final Set<Path> _scannables = ConcurrentHashMap.newKeySet();
-    private Scheduler.Task _task;
-    private final Scheduler _scheduler;
-    private int _scanDepth = DEFAULT_SCAN_DEPTH;
-    private final LinkOption[] _linkOptions = new LinkOption[] {LinkOption.NOFOLLOW_LINKS};
+    private final List<ScannerListener> listeners = new CopyOnWriteArrayList<>();
+
+    private final Set<Path> scannables = ConcurrentHashMap.newKeySet();
+    private final LinkOption[] linkOptions = new LinkOption[] {LinkOption.NOFOLLOW_LINKS};
+    private final Scheduler scheduler;
+    private Scheduler.Task task;
+
+    private int scanDepth = DEFAULT_SCAN_DEPTH;
+    private int scanInterval;
+    private Map<Path, FileMetaData> prevScan;
+
 
     public TestScanner(final String name) {
-        _scheduler = new ScheduledExecutorScheduler(name, true, 1);
-        addBean(_scheduler);
+        scheduler = new ScheduledExecutorScheduler(name, true, 1);
+        addBean(scheduler);
     }
 
     @Override
     public void doStart() throws Exception {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Scanner start:, depth={}, interval={}, scannables={}",
-                    _scanDepth, _scanInterval, _scannables);
+                    scanDepth, scanInterval, scannables);
         }
 
         // register list of existing files and report changes only after this
-        _prevScan = scanFiles();
+        prevScan = scanFiles();
 
         super.doStart();
 
@@ -74,24 +78,24 @@ public class TestScanner extends ContainerLifeCycle {
 
     private void schedule() {
         if (isRunning() && getScanInterval() > 0) {
-            _task = _scheduler.schedule(new ScanTask(), 1010L * getScanInterval(), TimeUnit.MILLISECONDS);
+            task = scheduler.schedule(new ScanTask(), 1010L * getScanInterval(), TimeUnit.MILLISECONDS);
         }
     }
 
     @Override
     public void doStop() throws Exception {
-        Scheduler.Task task = _task;
-        _task = null;
+        Scheduler.Task task = this.task;
+        this.task = null;
         if (task != null) {
             task.cancel();
         }
     }
 
     public void addListener(final ScannerListener listener) {
-        if (listener != null) {
+        if (listener == null) {
             return;
         }
-        _listeners.add(listener);
+        listeners.add(listener);
     }
 
     /**
@@ -100,7 +104,7 @@ public class TestScanner extends ContainerLifeCycle {
      * @return interval between scans in seconds
      */
     public int getScanInterval() {
-        return _scanInterval;
+        return scanInterval;
     }
 
     /**
@@ -113,7 +117,7 @@ public class TestScanner extends ContainerLifeCycle {
             throw new IllegalStateException("Scanner started");
         }
 
-        _scanInterval = scanInterval;
+        this.scanInterval = scanInterval;
     }
 
     public void setScanDirs(final List<File> dirs) {
@@ -121,7 +125,7 @@ public class TestScanner extends ContainerLifeCycle {
             throw new IllegalStateException("Scanner started");
         }
 
-        _scannables.clear();
+        scannables.clear();
         if (dirs == null) {
             return;
         }
@@ -149,21 +153,44 @@ public class TestScanner extends ContainerLifeCycle {
         }
 
         try {
-            final Path realPath = path.toRealPath(_linkOptions);
+            final Path realPath = path.toRealPath(linkOptions);
             if (!Files.exists(realPath) || !Files.isDirectory(realPath)) {
                 throw new IllegalStateException("Not directory or doesn't exist: " + path);
             }
 
-            _scannables.add(realPath);
+            scannables.add(realPath);
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
     }
 
+    /**
+     * Get the scanner to perform a scan cycle as soon as possible
+     * and call the Callback when the scan is finished or failed.
+     *
+     * @param complete called when the scan cycle finishes or fails.
+     */
+    void scan(final Callback complete) {
+        if (!isRunning() || scheduler == null) {
+            complete.failed(new IllegalStateException("Scanner not running"));
+            return;
+        }
+
+        scheduler.schedule(() -> {
+            try {
+                scan();
+                complete.succeeded();
+            }
+            catch (final Throwable t) {
+                complete.failed(t);
+            }
+        }, 0, TimeUnit.MILLISECONDS);
+    }
+
     public void scan() {
         final Map<Path, FileMetaData> currentScan = scanFiles();
-        reportDifferences(currentScan, _prevScan == null ? Collections.emptyMap() : Collections.unmodifiableMap(_prevScan));
-        _prevScan = currentScan;
+        reportDifferences(currentScan, prevScan == null ? Collections.emptyMap() : Collections.unmodifiableMap(prevScan));
+        prevScan = currentScan;
     }
 
     /**
@@ -172,13 +199,13 @@ public class TestScanner extends ContainerLifeCycle {
      */
     private Map<Path, FileMetaData> scanFiles() {
         final Map<Path, FileMetaData> scanResults = new HashMap<>();
-        for (final Path path : _scannables) {
+        for (final Path path : scannables) {
             try {
                 Files.walkFileTree(
                         path,
                         EnumSet.allOf(FileVisitOption.class),
-                        _scanDepth,
-                        new ScannerFileVisitor(path, scanResults, _linkOptions)
+                        scanDepth,
+                        new ScannerFileVisitor(path, scanResults, linkOptions)
                 );
             } catch (final IOException e) {
                 LOG.warn("Error scanning files.", e);
@@ -252,7 +279,7 @@ public class TestScanner extends ContainerLifeCycle {
             return;
         }
 
-        for (final ScannerListener l : _listeners) {
+        for (final ScannerListener l : listeners) {
             try {
                 l.changed(path);
             }
@@ -267,7 +294,7 @@ public class TestScanner extends ContainerLifeCycle {
      * @param path the path
      */
     private void reportAddition(final Path path) {
-        for (final ScannerListener l : _listeners) {
+        for (final ScannerListener l : listeners) {
             try {
                 l.added(path);
             }
@@ -282,7 +309,7 @@ public class TestScanner extends ContainerLifeCycle {
      * @param path the path of the removed filename
      */
     private void reportRemoval(final Path path) {
-        for (final ScannerListener l : _listeners) {
+        for (final ScannerListener l : listeners) {
             try {
                 l.removed(path);
             }
