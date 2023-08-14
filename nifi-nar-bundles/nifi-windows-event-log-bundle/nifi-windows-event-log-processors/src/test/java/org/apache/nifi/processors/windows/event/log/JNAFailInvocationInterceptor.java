@@ -19,15 +19,11 @@ package org.apache.nifi.processors.windows.event.log;
 import java.util.HashMap;
 import java.util.Map;
 
-public class JNAFailLauncherInterceptor extends JNAOverridingLauncherInterceptor{
-    public JNAFailLauncherInterceptor() {
-        super();
-    }
-
+public class JNAFailInvocationInterceptor extends JNAOverridingInvocationInterceptor {
     @Override
     protected Map<String, Map<String, String>> getClassOverrideMap() {
-        final Map<String, Map<String, String>> classOverrideMap = new HashMap<>();
-        final Map<String, String> nativeOverrideMap = new HashMap<>();
+        Map<String, Map<String, String>> classOverrideMap = new HashMap<>();
+        Map<String, String> nativeOverrideMap = new HashMap<>();
         nativeOverrideMap.put(LOAD_LIBRARY, "throw new " + UnsatisfiedLinkError.class.getCanonicalName() + "(\"JNAFailJUnitRunner\");");
         classOverrideMap.put(NATIVE_CANONICAL_NAME, nativeOverrideMap);
         return classOverrideMap;

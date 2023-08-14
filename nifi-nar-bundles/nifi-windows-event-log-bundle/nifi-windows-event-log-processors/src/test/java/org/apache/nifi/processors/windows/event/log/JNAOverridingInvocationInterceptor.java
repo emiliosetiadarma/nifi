@@ -17,14 +17,14 @@
 package org.apache.nifi.processors.windows.event.log;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import com.sun.jna.Native;
@@ -32,17 +32,38 @@ import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
 import org.junit.Assert;
-import org.junit.platform.launcher.LauncherInterceptor;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.InvocationInterceptor;
+import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
+import org.junit.platform.commons.util.ReflectionUtils;
 
-public abstract class JNAOverridingLauncherInterceptor implements LauncherInterceptor {
+public abstract class JNAOverridingInvocationInterceptor implements InvocationInterceptor {
     public static final String NATIVE_CANONICAL_NAME = Native.class.getCanonicalName();
     public static final String LOAD_LIBRARY = "loadLibrary";
 
-    private final URLClassLoader jnaMockClassLoader;
+    @Override
+    public void interceptTestMethod(final Invocation<Void> invocation,
+                                    final ReflectiveInvocationContext<Method> invocationContext,
+                                    final ExtensionContext extensionContext) {
+        intercept(invocation, invocationContext, extensionContext);
+    }
 
-    public JNAOverridingLauncherInterceptor() {
+    @Override
+    public void interceptTestTemplateMethod(final Invocation<Void> invocation,
+                                            final ReflectiveInvocationContext<Method> invocationContext,
+                                            final ExtensionContext extensionContext) {
+        intercept(invocation, invocationContext, extensionContext);
+    }
+
+    protected abstract Map<String, Map<String, String>> getClassOverrideMap();
+
+    private void intercept(final Invocation<Void> invocation,
+                           final ReflectiveInvocationContext<Method> invocationContext,
+                           final ExtensionContext extensionContext) {
+        invocation.skip();
+
         Map<String, Map<String, String>> classOverrideMap = getClassOverrideMap();
-        String classpath = System.getProperty("java.class.path");
+        final String classpath = System.getProperty("java.class.path");
         URL[] result = Pattern.compile(File.pathSeparator).splitAsStream(classpath).map(Paths::get).map(Path::toAbsolutePath).map(Path::toUri)
                 .map(uri -> {
                     URL url = null;
@@ -54,7 +75,7 @@ public abstract class JNAOverridingLauncherInterceptor implements LauncherInterc
                     return url;
                 })
                 .toArray(URL[]::new);
-        jnaMockClassLoader = new URLClassLoader(result, null) {
+        final URLClassLoader jnaMockClassLoader = new URLClassLoader(result, null) {
             @Override
             protected synchronized Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
                 Map<String, String> classOverrides = classOverrideMap.get(name);
@@ -82,7 +103,7 @@ public abstract class JNAOverridingLauncherInterceptor implements LauncherInterc
                         throw new ClassNotFoundException(name, e);
                     }
                 } else if (name.startsWith("org.junit.") || name.startsWith("org.mockito")) {
-                    Class<?> result = JNAOverridingJUnitRunner.class.getClassLoader().loadClass(name);
+                    Class<?> result = JNAOverridingInvocationInterceptor.class.getClassLoader().loadClass(name);
                     if (resolve) {
                         resolveClass(result);
                     }
@@ -91,30 +112,40 @@ public abstract class JNAOverridingLauncherInterceptor implements LauncherInterc
                 return super.loadClass(name, resolve);
             }
         };
+
+        invokeMethodWithModifiedClassLoader(invocationContext, jnaMockClassLoader);
     }
 
-    @Override
-    public <T> T intercept(final Invocation<T> invocation) {
-        final Thread currentThread = Thread.currentThread();
-        final ClassLoader originalClassLoader = currentThread.getContextClassLoader();
-        currentThread.setContextClassLoader(jnaMockClassLoader);
+    private void invokeMethodWithModifiedClassLoader(final ReflectiveInvocationContext<Method> invocationContext,
+                                                     final ClassLoader classLoader) {
+        final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(classLoader);
+
         try {
-            return invocation.proceed();
-        }
-        finally {
-            currentThread.setContextClassLoader(originalClassLoader);
+            final String className = invocationContext.getExecutable().getDeclaringClass().getName();
+            final String methodName = invocationContext.getExecutable().getName();
+            invokeMethod(className, methodName, classLoader);
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
     }
 
-    @Override
-    public void close() {
+    private void invokeMethod(final String className,
+                              final String methodName,
+                              final ClassLoader classLoader) {
+        final Class<?> testClass;
         try {
-            jnaMockClassLoader.close();
+            testClass = classLoader.loadClass(className);
+        } catch (final ClassNotFoundException e) {
+            throw new IllegalStateException("Cannot load test class [" + className + "] from modified classloader, " +
+                    "verify that you did not exclude a path containing the test", e);
         }
-        catch (final IOException e) {
-            throw new UncheckedIOException("Failed to close custom class loader", e);
-        }
-    }
 
-    protected abstract Map<String, Map<String, String>> getClassOverrideMap();
+        final Object testInstance = ReflectionUtils.newInstance(testClass);
+        final Optional<Method> method = ReflectionUtils.findMethod(testClass, methodName);
+        ReflectionUtils.invokeMethod(
+                method.orElseThrow(() -> new IllegalStateException("No test method named " + methodName)),
+                testInstance
+        );
+    }
 }

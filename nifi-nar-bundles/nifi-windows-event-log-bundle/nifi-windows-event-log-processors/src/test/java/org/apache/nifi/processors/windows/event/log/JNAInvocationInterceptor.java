@@ -21,23 +21,19 @@ import com.sun.jna.platform.win32.Kernel32Util;
 import java.util.HashMap;
 import java.util.Map;
 
-public class JNALauncherInterceptor extends JNAOverridingLauncherInterceptor {
+public class JNAInvocationInterceptor extends JNAOverridingInvocationInterceptor {
     public static final String TEST_COMPUTER_NAME = "testComputerName";
     public static final String KERNEL_32_UTIL_CANONICAL_NAME = Kernel32Util.class.getCanonicalName();
 
-    public JNALauncherInterceptor() {
-        super();
-    }
-
     @Override
     protected Map<String, Map<String, String>> getClassOverrideMap() {
-        final Map<String, Map<String, String>> classOverrideMap = new HashMap<>();
+        Map<String, Map<String, String>> classOverrideMap = new HashMap<>();
 
-        final Map<String, String> nativeOverrideMap = new HashMap<>();
+        Map<String, String> nativeOverrideMap = new HashMap<>();
         nativeOverrideMap.put(LOAD_LIBRARY, "return null;");
         classOverrideMap.put(NATIVE_CANONICAL_NAME, nativeOverrideMap);
 
-        final Map<String, String> kernel32UtilMap = new HashMap<>();
+        Map<String, String> kernel32UtilMap = new HashMap<>();
         kernel32UtilMap.put("getComputerName", "return \"" + TEST_COMPUTER_NAME + "\";");
         classOverrideMap.put(KERNEL_32_UTIL_CANONICAL_NAME, kernel32UtilMap);
 
