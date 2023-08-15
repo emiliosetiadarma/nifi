@@ -17,26 +17,22 @@
 
 package org.apache.nifi.processors.windows.event.log;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.W32Errors;
 import com.sun.jna.platform.win32.WinError;
 import com.sun.jna.platform.win32.WinNT;
-import java.io.UnsupportedEncodingException;
+import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.annotation.lifecycle.OnStopped;
+import org.apache.nifi.processor.exception.ProcessException;
+import org.apache.nifi.processors.windows.event.log.jna.EventSubscribeXmlRenderingCallback;
+import org.apache.nifi.processors.windows.event.log.jna.WEvtApi;
+import org.apache.nifi.util.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -45,27 +41,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.nifi.annotation.lifecycle.OnScheduled;
-import org.apache.nifi.annotation.lifecycle.OnStopped;
-import org.apache.nifi.processor.exception.ProcessException;
-import org.apache.nifi.processors.windows.event.log.jna.EventSubscribeXmlRenderingCallback;
-import org.apache.nifi.processors.windows.event.log.jna.WEvtApi;
-import org.apache.nifi.util.MockFlowFile;
-import org.apache.nifi.util.MockProcessSession;
-import org.apache.nifi.util.MockSessionFactory;
-import org.apache.nifi.util.ReflectionUtils;
-import org.apache.nifi.util.TestRunner;
-import org.apache.nifi.util.TestRunners;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(JNAInvocationInterceptor.class)
 public class ConsumeWindowsEventLogTest {
@@ -260,7 +239,7 @@ public class ConsumeWindowsEventLogTest {
         return eventHandles;
     }
 
-    public void setupMocks() {
+    private void setupMocks() {
         kernel32 = mock(Kernel32.class);
         wEvtApi = mock(WEvtApi.class);
         subscriptionHandle = mock(WinNT.HANDLE.class);

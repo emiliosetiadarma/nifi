@@ -19,36 +19,36 @@ package org.apache.nifi.processors.windows.event.log.jna;
 
 import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinError;
-import org.apache.nifi.processors.windows.event.log.JNAJUnitRunner;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
+import org.apache.nifi.processors.windows.event.log.JNAInvocationInterceptor;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@RunWith(JNAJUnitRunner.class)
+@ExtendWith(JNAInvocationInterceptor.class)
 public class ErrorLookupTest {
-    @Mock
     Kernel32 kernel32;
 
     private ErrorLookup errorLookup;
 
-    @Before
-    public void setup() {
-        errorLookup = new ErrorLookup(kernel32);
-    }
-
     @Test
     public void testErrorLookupExists() {
+        setupMocks();
         when(kernel32.GetLastError()).thenReturn(WinError.ERROR_INSUFFICIENT_BUFFER);
         assertEquals("ERROR_INSUFFICIENT_BUFFER(" + WinError.ERROR_INSUFFICIENT_BUFFER + ")", errorLookup.getLastError());
     }
 
     @Test
     public void testErrorLookupDoesntExist() {
+        setupMocks();
         when(kernel32.GetLastError()).thenReturn(Integer.MAX_VALUE);
         assertEquals(Integer.toString(Integer.MAX_VALUE), errorLookup.getLastError());
+    }
+
+    private void setupMocks() {
+        kernel32 = mock(Kernel32.class);
+        errorLookup = new ErrorLookup(kernel32);
     }
 }

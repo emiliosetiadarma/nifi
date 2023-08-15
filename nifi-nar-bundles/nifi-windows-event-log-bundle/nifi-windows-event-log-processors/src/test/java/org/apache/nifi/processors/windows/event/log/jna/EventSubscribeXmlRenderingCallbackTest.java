@@ -22,52 +22,35 @@ import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinNT;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processors.windows.event.log.ConsumeWindowsEventLogTest;
-import org.apache.nifi.processors.windows.event.log.JNAJUnitRunner;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
+import org.apache.nifi.processors.windows.event.log.JNAInvocationInterceptor;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-@RunWith(JNAJUnitRunner.class)
+@ExtendWith(JNAInvocationInterceptor.class)
 public class EventSubscribeXmlRenderingCallbackTest {
-    @Mock
-    ComponentLog logger;
+    private ComponentLog logger;
 
-    @Mock
-    Consumer<String> consumer;
+    private Consumer<String> consumer;
 
-    @Mock
-    WEvtApi wEvtApi;
+    private WEvtApi wEvtApi;
 
-    @Mock
-    Kernel32 kernel32;
+    private Kernel32 kernel32;
 
-    @Mock
-    ErrorLookup errorLookup;
+    private ErrorLookup errorLookup;
 
-    @Mock
-    WinNT.HANDLE handle;
-
+    private WinNT.HANDLE handle;
     private EventSubscribeXmlRenderingCallback eventSubscribeXmlRenderingCallback;
     private int maxBufferSize;
 
-    @Before
-    public void setup() {
-        maxBufferSize = 8;
-        eventSubscribeXmlRenderingCallback = new EventSubscribeXmlRenderingCallback(logger, consumer, maxBufferSize, wEvtApi, kernel32, errorLookup);
-    }
-
-    @Test
+    @org.testng.annotations.Test
     public void testErrorJustLogs() {
+        setupMocks();
         int errorCode = 111;
         Pointer pointer = mock(Pointer.class);
         when(handle.getPointer()).thenReturn(pointer);
@@ -79,6 +62,7 @@ public class EventSubscribeXmlRenderingCallbackTest {
 
     @Test
     public void testMissingRecordLog() {
+        setupMocks();
         Pointer pointer = mock(Pointer.class);
         when(handle.getPointer()).thenReturn(pointer);
         when(pointer.getInt(0)).thenReturn(WEvtApi.EvtSubscribeErrors.ERROR_EVT_QUERY_RESULT_STALE);
@@ -89,6 +73,7 @@ public class EventSubscribeXmlRenderingCallbackTest {
 
     @Test
     public void testSuccessfulRender() {
+        setupMocks();
         String small = "abc";
         handle = ConsumeWindowsEventLogTest.mockEventHandles(wEvtApi, kernel32, Arrays.asList(small + "\u0000")).get(0);
         eventSubscribeXmlRenderingCallback.onEvent(WEvtApi.EvtSubscribeNotifyAction.DELIVER, null, handle);
@@ -97,6 +82,7 @@ public class EventSubscribeXmlRenderingCallbackTest {
 
     @Test
     public void testUnsuccessfulRender() {
+        setupMocks();
         String large = "abcde";
         handle = ConsumeWindowsEventLogTest.mockEventHandles(wEvtApi, kernel32, Arrays.asList(large)).get(0);
         eventSubscribeXmlRenderingCallback.onEvent(WEvtApi.EvtSubscribeNotifyAction.DELIVER, null, handle);
@@ -105,6 +91,7 @@ public class EventSubscribeXmlRenderingCallbackTest {
 
     @Test
     public void testResizeRender() {
+        setupMocks();
         // Make a string too big to fit into initial buffer
         StringBuilder testStringBuilder = new StringBuilder();
         for (int i = 0; i < 10; i++) {
@@ -125,11 +112,24 @@ public class EventSubscribeXmlRenderingCallbackTest {
 
     @Test
     public void testErrorRendering() {
+        setupMocks();
         int value = 225;
         String code = "225code";
         when(kernel32.GetLastError()).thenReturn(value);
         when(errorLookup.getLastError()).thenReturn(code);
         eventSubscribeXmlRenderingCallback.onEvent(WEvtApi.EvtSubscribeNotifyAction.DELIVER, null, handle);
         verify(logger).error(EventSubscribeXmlRenderingCallback.EVT_RENDER_RETURNED_THE_FOLLOWING_ERROR_CODE + code + ".");
+    }
+
+    private void setupMocks() {
+        logger = mock(ComponentLog.class);
+        consumer = mock(Consumer.class);
+        wEvtApi = mock(WEvtApi.class);
+        kernel32 = mock(Kernel32.class);
+        errorLookup = mock(ErrorLookup.class);
+        handle = mock(WinNT.HANDLE.class);
+
+        maxBufferSize = 8;
+        eventSubscribeXmlRenderingCallback = new EventSubscribeXmlRenderingCallback(logger, consumer, maxBufferSize, wEvtApi, kernel32, errorLookup);
     }
 }
