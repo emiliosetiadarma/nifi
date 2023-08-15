@@ -48,13 +48,6 @@ public abstract class JNAOverridingInvocationInterceptor implements InvocationIn
         intercept(invocation, invocationContext, extensionContext);
     }
 
-    @Override
-    public void interceptTestTemplateMethod(final Invocation<Void> invocation,
-                                            final ReflectiveInvocationContext<Method> invocationContext,
-                                            final ExtensionContext extensionContext) {
-        intercept(invocation, invocationContext, extensionContext);
-    }
-
     protected abstract Map<String, Map<String, String>> getClassOverrideMap();
 
     private void intercept(final Invocation<Void> invocation,
@@ -102,12 +95,6 @@ public abstract class JNAOverridingInvocationInterceptor implements InvocationIn
                     } catch (Exception e) {
                         throw new ClassNotFoundException(name, e);
                     }
-                } else if (name.startsWith("org.junit.") || name.startsWith("org.mockito")) {
-                    Class<?> result = JNAOverridingInvocationInterceptor.class.getClassLoader().loadClass(name);
-                    if (resolve) {
-                        resolveClass(result);
-                    }
-                    return result;
                 }
                 return super.loadClass(name, resolve);
             }
@@ -148,4 +135,6 @@ public abstract class JNAOverridingInvocationInterceptor implements InvocationIn
                 testInstance
         );
     }
+
+
 }

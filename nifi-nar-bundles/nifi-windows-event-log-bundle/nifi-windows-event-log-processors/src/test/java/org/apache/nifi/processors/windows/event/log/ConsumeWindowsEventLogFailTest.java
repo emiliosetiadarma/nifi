@@ -19,17 +19,17 @@ package org.apache.nifi.processors.windows.event.log;
 
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Test scenario where we can't load the native libraries
  */
-@RunWith(JNAFailJUnitRunner.class)
+@ExtendWith(JNAFailInvocationInterceptor.class)
 public class ConsumeWindowsEventLogFailTest {
 
     /**
-     * The processor should never be valid because we're using JNAFailJUnitRunner
+     * The processor should never be valid because we're using JNAFailInvocationInterceptor
      */
     @Test
     public void testValidate() {
