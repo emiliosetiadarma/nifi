@@ -48,7 +48,7 @@ public class EventSubscribeXmlRenderingCallbackTest {
     private EventSubscribeXmlRenderingCallback eventSubscribeXmlRenderingCallback;
     private int maxBufferSize;
 
-    @org.testng.annotations.Test
+    @Test
     public void testErrorJustLogs() {
         setupMocks();
         int errorCode = 111;
