@@ -77,8 +77,8 @@ public abstract class JNAOverridingInvocationInterceptor implements InvocationIn
                     try {
                         CtClass ctClass = classPool.get(name);
                         try {
-                            for (Map.Entry<String, String> methodAndBody : classOverrides.entrySet()) {
-                                for (CtMethod loadLibrary : ctClass.getDeclaredMethods(methodAndBody.getKey())) {
+                            for (final Map.Entry<String, String> methodAndBody : classOverrides.entrySet()) {
+                                for (final CtMethod loadLibrary : ctClass.getDeclaredMethods(methodAndBody.getKey())) {
                                     loadLibrary.setBody(methodAndBody.getValue());
                                 }
                             }
@@ -92,7 +92,7 @@ public abstract class JNAOverridingInvocationInterceptor implements InvocationIn
                         } finally {
                             ctClass.detach();
                         }
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         throw new ClassNotFoundException(name, e);
                     }
                 }
